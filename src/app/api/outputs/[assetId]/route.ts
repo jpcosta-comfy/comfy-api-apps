@@ -5,6 +5,7 @@ import { errorResponse, AppError } from "@/lib/http";
 import { isMockOutputId, isUuid } from "@/lib/ids";
 import { contentTypeFor, sniffImage } from "@/lib/images";
 import { renderMockOutput } from "@/lib/mock";
+import { verifyAssetSignature } from "@/lib/signing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,10 +24,15 @@ function attachment(name: string, type: string, bytes: Uint8Array): Response {
   });
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ assetId: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ assetId: string }> }) {
   try {
     const { assetId } = await context.params;
     if (assetId.includes("/") || assetId.includes("\\") || assetId.includes("..")) {
+      throw new AppError(404, "not_found", "Output not found.");
+    }
+
+    const signature = new URL(request.url).searchParams.get("sig");
+    if (!verifyAssetSignature(assetId, signature)) {
       throw new AppError(404, "not_found", "Output not found.");
     }
 

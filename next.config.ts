@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["sharp"],
+  outputFileTracingIncludes: {
+    "/api/**/*": ["./workflows/**/*"],
+  },
   poweredByHeader: false,
   async headers() {
     return [

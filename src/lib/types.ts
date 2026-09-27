@@ -11,6 +11,8 @@ export type JobOutput = {
   id: string;
   nodeId: string;
   name: string;
+  /** HMAC of `id`. Present on responses from GET /api/jobs. Required to download. */
+  sig?: string;
 };
 
 export type JobView = {

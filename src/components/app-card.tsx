@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BackgroundValue, FormatValue } from "@/lib/choices";
-import { RequestModal } from "@/components/request-modal";
 import { downloadBlob, exportCutout } from "@/lib/composite";
 import { randomSeed, shrinkForUpload } from "@/lib/prepare-image";
 import { LILAC, TERMINAL_STATUSES, type CatalogApp, type JobView, type RunResponse } from "@/lib/types";
@@ -20,8 +19,6 @@ type HistoryItem = {
   blob: Blob;
   url: string;
   before: Record<string, string>;
-  request: unknown;
-  idempotencyKey: string;
   label: string;
   frames: string;
   width: number;
@@ -62,7 +59,6 @@ export function AppCard({ app }: { app: CatalogApp }) {
   const [view, setView] = useState(0);
   const [compare, setCompare] = useState(50);
   const [toast, setToast] = useState<string | null>(null);
-  const [showRequest, setShowRequest] = useState(false);
   const [hot, setHot] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
@@ -218,8 +214,8 @@ export function AppCard({ app }: { app: CatalogApp }) {
         throw new Error(job.error?.message || statusMessage(job.status));
       }
       const output = job.outputs[0];
-      if (!output) throw new Error("The job finished without an image.");
-      const imageRes = await fetch(`/api/outputs/${output.id}`, { signal: controller.signal });
+      if (!output?.sig) throw new Error("The job finished without an image.");
+      const imageRes = await fetch(`/api/outputs/${encodeURIComponent(output.id)}?sig=${encodeURIComponent(output.sig)}`, { signal: controller.signal });
       if (!imageRes.ok) {
         const body = (await imageRes.json().catch(() => null)) as { error?: { message?: string } } | null;
         throw new Error(body?.error?.message || "Could not download the result.");
@@ -237,8 +233,6 @@ export function AppCard({ app }: { app: CatalogApp }) {
         blob,
         url,
         before,
-        request: payload.request,
-        idempotencyKey: payload.idempotencyKey,
         label: labelFor(),
         frames: controlValue(values, "frames") || "4",
         width: dims.width,
@@ -420,9 +414,6 @@ export function AppCard({ app }: { app: CatalogApp }) {
             </div>
             <span className="rmeta">{rmeta}</span>
             <span className="sp" />
-            <button className="btn" type="button" disabled={!active} onClick={() => setShowRequest(true)}>
-              View request
-            </button>
             <button className="btn" type="button" disabled={!active || busy} onClick={() => void run()}>
               ↻ Retry
             </button>
@@ -486,9 +477,6 @@ export function AppCard({ app }: { app: CatalogApp }) {
           </div>
         </div>
       </div>
-      {showRequest && active ? (
-        <RequestModal request={active.request} idempotencyKey={active.idempotencyKey} onClose={() => setShowRequest(false)} />
-      ) : null}
     </article>
   );
 }

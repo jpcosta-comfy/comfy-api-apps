@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { buildAssetForm } from "../src/lib/comfy";
 import { getApp, type AppConfig } from "../src/lib/config";
 import { prepareImage } from "../src/lib/images";
 import { saveMockJob, renderMockOutput } from "../src/lib/mock";
 import { buildPrompt, intensityWord } from "../src/lib/prompts";
+import { signAssetId, verifyAssetSignature } from "../src/lib/signing";
 import { buildJobBody, redactJobBody } from "../src/lib/workflow";
 
 process.chdir(path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."));
@@ -121,6 +123,32 @@ assert.equal(bg.workflow["2"].inputs.bg_removal_name, "birefnet.safetensors");
 assert.equal(bg.workflow["6"].class_type, "SaveImage");
 
 assert.throws(() => buildPrompt(relight, { preset: "nope", direction: "left", intensity: 10 }), /preset/i);
+
+const assetForm = buildAssetForm(Buffer.from("png"), "input.png");
+assert.deepEqual([...assetForm.keys()], ["content_type", "file_path", "tags", "file"]);
+assert.equal(assetForm.get("content_type"), "image/png");
+assert.equal(assetForm.get("file_path"), "input.png");
+assert.equal(assetForm.get("tags"), '["input"]');
+
+const savedSecret = process.env.OUTPUT_SIGNING_SECRET;
+const savedKey = process.env.COMFY_CLOUD_API_KEY;
+process.env.OUTPUT_SIGNING_SECRET = "test-output-secret";
+const assetId = "11111111-1111-4111-8111-111111111111";
+const goodSig = signAssetId(assetId);
+assert.equal(verifyAssetSignature(assetId, goodSig), true);
+assert.equal(verifyAssetSignature(assetId, goodSig.slice(0, -1) + (goodSig.endsWith("a") ? "b" : "a")), false);
+assert.equal(verifyAssetSignature("22222222-2222-4222-8222-222222222222", goodSig), false);
+assert.equal(verifyAssetSignature(assetId, null), false);
+delete process.env.OUTPUT_SIGNING_SECRET;
+process.env.COMFY_CLOUD_API_KEY = "key-a";
+const fromKeyA = signAssetId(assetId);
+process.env.COMFY_CLOUD_API_KEY = "key-b";
+assert.notEqual(signAssetId(assetId), fromKeyA);
+assert.equal(verifyAssetSignature(assetId, fromKeyA), false);
+if (savedSecret === undefined) delete process.env.OUTPUT_SIGNING_SECRET;
+else process.env.OUTPUT_SIGNING_SECRET = savedSecret;
+if (savedKey === undefined) delete process.env.COMFY_CLOUD_API_KEY;
+else process.env.COMFY_CLOUD_API_KEY = savedKey;
 
 async function main() {
 const wide = await sharp({

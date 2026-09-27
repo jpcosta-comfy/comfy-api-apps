@@ -42,11 +42,14 @@ export function assetRef(id: string, filePath: string): AssetRef {
 }
 
 function loadWorkflow(rel: string): Workflow {
-  const root = path.resolve(process.cwd(), "workflows");
-  const resolved = path.resolve(process.cwd(), rel);
-  if (resolved !== root && !resolved.startsWith(root + path.sep)) {
+  const prefix = "workflows/";
+  if (!rel.startsWith(prefix) || rel.includes("..") || path.isAbsolute(rel)) {
     throw new AppError(500, "internal", "Workflow path is outside the workflows directory.");
   }
+  // Join under workflows/ so the file tracer can see the directory. A fully
+  // dynamic path.resolve(cwd, rel) either drops these JSON files or pulls in
+  // the whole project.
+  const resolved = path.join(process.cwd(), "workflows", rel.slice(prefix.length));
   return JSON.parse(readFileSync(resolved, "utf8")) as Workflow;
 }
 

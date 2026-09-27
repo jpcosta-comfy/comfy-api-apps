@@ -76,12 +76,18 @@ async function throwEnvelope(res: Response): Promise<never> {
   throw new AppError(status, code, message);
 }
 
-export async function uploadAsset(png: Buffer, filePath: string): Promise<string> {
+/** Multipart field order is required. Cloud returns 422 if `file` precedes `content_type`. */
+export function buildAssetForm(png: Buffer, filePath: string): FormData {
   const form = new FormData();
-  form.append("file", new Blob([new Uint8Array(png)], { type: "image/png" }), filePath);
   form.append("content_type", "image/png");
   form.append("file_path", filePath);
   form.append("tags", JSON.stringify(["input"]));
+  form.append("file", new Blob([new Uint8Array(png)], { type: "image/png" }), filePath);
+  return form;
+}
+
+export async function uploadAsset(png: Buffer, filePath: string): Promise<string> {
+  const form = buildAssetForm(png, filePath);
 
   const res = await comfyFetch("/api/v2/assets", { method: "POST", body: form }, 60_000);
   if (!res.ok) await throwEnvelope(res);
