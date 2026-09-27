@@ -1,0 +1,42 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Character reference image"
+    }
+  },
+  "2": {
+    "class_type": "GeminiImage2Node",
+    "inputs": {
+      "images": [
+        "1",
+        0
+      ],
+      "prompt": "Create a character sprite sheet of the character in the reference image: a 4-frame side-view walk cycle, facing right. Arrange the 4 frames in a 2x2 grid of equal square cells, reading left to right, top to bottom. Keep the exact same character design, colors, proportions and outfit in every frame; only the pose changes to form a smooth looping walk (contact, down, passing, up). Clean 3D cartoon game-asset style, full body visible in each cell, character centered, consistent scale, plain flat white background, no text, no labels, no grid lines.",
+      "model": "Nano Banana 2 (Gemini 3.1 Flash Image)",
+      "seed": 42,
+      "aspect_ratio": "1:1",
+      "resolution": "1K",
+      "response_modalities": "IMAGE"
+    },
+    "_meta": {
+      "title": "Nano Banana 2 sprite sheet"
+    }
+  },
+  "3": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "2",
+        0
+      ],
+      "filename_prefix": "comfy-api-apps/sprite_sheet"
+    },
+    "_meta": {
+      "title": "Output"
+    }
+  }
+}

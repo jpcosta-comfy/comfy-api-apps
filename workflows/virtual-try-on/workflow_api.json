@@ -1,0 +1,51 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "person.png"
+    },
+    "_meta": {
+      "title": "Person image"
+    }
+  },
+  "2": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "garment.png"
+    },
+    "_meta": {
+      "title": "Garment image"
+    }
+  },
+  "3": {
+    "class_type": "FluxVTONode",
+    "inputs": {
+      "person": [
+        "1",
+        0
+      ],
+      "garment": [
+        "2",
+        0
+      ],
+      "prompt": "Replace the top with the reference garment, regular fit",
+      "seed": 42
+    },
+    "_meta": {
+      "title": "FLUX Virtual Try-On (BFL partner node)"
+    }
+  },
+  "4": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "3",
+        0
+      ],
+      "filename_prefix": "comfy-api-apps/tryon"
+    },
+    "_meta": {
+      "title": "Output"
+    }
+  }
+}

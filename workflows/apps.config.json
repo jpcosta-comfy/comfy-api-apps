@@ -1,0 +1,86 @@
+{
+  "$comment": "Swappable app -> workflow layer. To move to another Comfy Cloud account: change COMFY_CLOUD_API_KEY and (optionally) the cloudWorkflowId values below. The server submits the local workflow_api.json files, so IDs are for reference / opening in the Comfy Cloud editor only.",
+  "account": "personal (JP) - swap to work account",
+  "baseUrl": "https://cloud.comfy.org",
+  "apps": {
+    "product-relight": {
+      "title": "Product Relight",
+      "workflow": "workflows/product-relight/workflow_api.json",
+      "cloudWorkflowId": "b4f6d5c2-597a-46b5-924d-bd54f4b1f212",
+      "cloudWorkflowName": "comfy-api-apps - Product Relight",
+      "partnerNodes": false,
+      "imageInputs": { "image": { "node": "1", "input": "image", "maxSide": 1536 } },
+      "params": {
+        "prompt": { "node": "10", "input": "prompt", "builtFrom": ["preset", "direction", "intensity"] },
+        "seed": { "node": "13", "input": "seed" }
+      },
+      "presets": {
+        "studio": "clean professional studio lighting, a soft white key light from the {direction} with gentle fill light, soft realistic shadows, neutral light grey background",
+        "golden": "warm golden hour sunlight coming from the {direction}, long soft shadows, warm orange and amber tones, soft haze",
+        "neon": "vivid neon lighting: saturated magenta and electric cyan neon light coming from the {direction}, strong colored rim light on the product edges, dark moody background with soft neon glow, colorful reflections"
+      },
+      "intensityWords": { "0-33": "subtle", "34-66": "balanced", "67-100": "strong, dramatic" },
+      "promptTemplate": "重新照明, relight the image using {intensity} {preset}, keep the product shape, materials and details unchanged",
+      "output": { "node": "15" }
+    },
+    "image-upscaler": {
+      "title": "Image Upscaler",
+      "workflow": "workflows/image-upscaler/workflow_api.json",
+      "cloudWorkflowId": "fb6f5a18-d7cf-496d-8c61-6b20fb80ac96",
+      "cloudWorkflowName": "comfy-api-apps - Image Upscaler",
+      "partnerNodes": false,
+      "imageInputs": { "image": { "node": "1", "input": "image", "maxSide": 1024 } },
+      "params": {
+        "scale": { "node": "4", "input": "scale_by", "map": { "2": 0.5, "4": 1.0 } },
+        "model": { "node": "2", "input": "model_name", "default": "4x-UltraSharp.pth" }
+      },
+      "output": { "node": "5" }
+    },
+    "sprite-generator": {
+      "title": "Sprite Generator",
+      "workflow": "workflows/sprite-generator/workflow_api.json",
+      "workflowPromptOnly": "workflows/sprite-generator/workflow_api.prompt_only.json",
+      "cloudWorkflowId": "48e49e4d-2a1d-4338-977d-36347a3b4a4d",
+      "cloudWorkflowName": "comfy-api-apps - Sprite Generator",
+      "partnerNodes": true,
+      "imageInputs": { "image": { "node": "1", "input": "image", "maxSide": 1024, "optional": true } },
+      "params": {
+        "prompt": { "node": "2", "input": "prompt", "builtFrom": ["style", "motion", "frames", "description"] },
+        "aspect_ratio": { "node": "2", "input": "aspect_ratio", "map": { "4": "1:1", "8": "16:9", "12": "21:9" } },
+        "seed": { "node": "2", "input": "seed" }
+      },
+      "grids": { "4": "2x2", "8": "4x2", "12": "6x2" },
+      "styles": { "3d": "clean 3D cartoon game-asset style", "toon": "flat 2D toon style with bold outlines", "pixel": "crisp pixel-art style, 32x32-pixel look, limited palette" },
+      "motions": { "idle": "idle breathing loop", "walk": "side-view walk cycle, facing right", "jump": "jump sequence (crouch, take-off, air, landing)" },
+      "promptTemplate": "Create a character sprite sheet of {subject}: a {frames}-frame {motion}. Arrange the {frames} frames in a {grid} grid of equal cells, reading left to right, top to bottom. Keep the exact same character design, colors, proportions and outfit in every frame; only the pose changes to form a smooth loop. {style}, full body visible in each cell, character centered, consistent scale, plain flat white background, no text, no labels, no grid lines.",
+      "output": { "node": "3" }
+    },
+    "virtual-try-on": {
+      "title": "Virtual Try On",
+      "workflow": "workflows/virtual-try-on/workflow_api.json",
+      "cloudWorkflowId": "5163ca49-7c0b-4cdb-a2be-a897110b4ac1",
+      "cloudWorkflowName": "comfy-api-apps - Virtual Try On",
+      "partnerNodes": true,
+      "imageInputs": {
+        "person": { "node": "1", "input": "image", "maxSide": 1536 },
+        "garment": { "node": "2", "input": "image", "maxSide": 1536 }
+      },
+      "params": {
+        "prompt": { "node": "3", "input": "prompt", "builtFrom": ["fit"], "template": "Replace the outfit with the reference garment, {fit} fit" },
+        "seed": { "node": "3", "input": "seed" }
+      },
+      "output": { "node": "4" }
+    },
+    "background-removal": {
+      "title": "Background Removal",
+      "workflow": "workflows/background-removal/workflow_api.json",
+      "cloudWorkflowId": "ced40cbe-93c5-4bc9-8829-2cc5d31cfe6f",
+      "cloudWorkflowName": "comfy-api-apps - Background Removal",
+      "partnerNodes": false,
+      "imageInputs": { "image": { "node": "1", "input": "image", "maxSide": 2048 } },
+      "params": {},
+      "notes": "Output is an RGBA PNG. White / lilac backgrounds are composited client-side on a canvas.",
+      "output": { "node": "6" }
+    }
+  }
+}
