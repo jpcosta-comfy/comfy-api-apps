@@ -50,10 +50,10 @@ export function Studio({
       <main className="page">
       <div className="intro">
         <h1>Use it anywhere</h1>
-        <p className="lede">Five apps on the Comfy Cloud API. Any image you upload.</p>
+        <p className="lede">Five apps on personal Comfy deployments. Any image you upload.</p>
       </div>
       {!mock && !configured ? (
-        <p className="warn">Set COMFY_CLOUD_API_KEY on the server to run live jobs, or COMFY_MOCK=1 for sample output.</p>
+        <p className="warn">Set COMFY_API_KEY or COMFY_CLOUD_API_KEY on the server to run live jobs, or COMFY_MOCK=1 for sample output.</p>
       ) : null}
       <div className="stage-wrap">
         <button className="arrow prev" type="button" aria-label="Previous app" onClick={() => setIndex((current) => (current - 1 + count) % count)}>

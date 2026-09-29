@@ -1,7 +1,8 @@
 # Product Relight
 
-- API workflow: `workflow_api.json` (Comfy API format, submitted verbatim to `POST /api/v2/jobs`)
-- Saved on Comfy Cloud (JP personal, for testing): `comfy-api-apps - Product Relight` - workflow id `b4f6d5c2-597a-46b5-924d-bd54f4b1f212` - https://cloud.comfy.org/#b4f6d5c2-597a-46b5-924d-bd54f4b1f212
+- API workflow: `workflow_api.json` (Comfy API format, submitted verbatim to this app's deployment `POST /api/v2/jobs`)
+- Runtime host: `workflows/deployments.json` → `product-relight` (`COMFY_BASE_URL_PRODUCT_RELIGHT`)
+- Editor copy (not the runtime target): `comfy-api-apps - Product Relight` - workflow id `b4f6d5c2-597a-46b5-924d-bd54f4b1f212` - https://cloud.comfy.org/#b4f6d5c2-597a-46b5-924d-bd54f4b1f212
 
 Relights a product photo with a text lighting instruction. Built from the Comfy template `image_qwen_image_edit_2509_relight` with the subgraph flattened into plain API format.
 

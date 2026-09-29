@@ -3,7 +3,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { buildAssetForm } from "../src/lib/comfy";
-import { getApp, type AppConfig } from "../src/lib/config";
+import { getApp, listAppIds, type AppConfig } from "../src/lib/config";
+import {
+  deploymentBaseUrl,
+  deploymentEnvName,
+  deploymentFailureMessage,
+  deploymentTarget,
+  listDeploymentSlugs,
+} from "../src/lib/deployments";
+import { apiKey } from "../src/lib/env";
+import { parsePublicRouteId, publicRouteId } from "../src/lib/ids";
 import { prepareImage } from "../src/lib/images";
 import { saveMockJob, renderMockOutput } from "../src/lib/mock";
 import { buildPrompt, intensityWord } from "../src/lib/prompts";
@@ -17,6 +26,62 @@ function mustApp(id: string): AppConfig {
   if (!app) throw new Error(`Missing app ${id}`);
   return app;
 }
+
+const EXPECTED_ENDPOINTS: Record<string, string> = {
+  "product-relight": "https://dep-1a2d3e32-57f0-4617-8ee1-a302160f4cb8.run.comfy.app",
+  "image-upscaler": "https://dep-226ed4ac-b5eb-4d8d-bb9c-51907d71718a.run.comfy.app",
+  "sprite-generator": "https://dep-6e5a0ab1-8131-4ee8-acb7-ae1840160e13.run.comfy.app",
+  "background-removal": "https://dep-e45cb437-0991-4689-9f7c-77d5748e3adc.run.comfy.app",
+  "virtual-try-on": "https://dep-d99a045a-86e9-4251-bbae-0a88940f78d1.run.comfy.app",
+};
+
+const deploymentEnvNames = Object.keys(EXPECTED_ENDPOINTS).map(deploymentEnvName);
+const savedDeploymentEnv = Object.fromEntries(deploymentEnvNames.map((name) => [name, process.env[name]]));
+const savedCloudBase = process.env.COMFY_CLOUD_BASE_URL;
+for (const name of deploymentEnvNames) delete process.env[name];
+delete process.env.COMFY_CLOUD_BASE_URL;
+
+assert.deepEqual([...listAppIds()].sort(), Object.keys(EXPECTED_ENDPOINTS).sort());
+assert.deepEqual([...listDeploymentSlugs()].sort(), Object.keys(EXPECTED_ENDPOINTS).sort());
+for (const [slug, url] of Object.entries(EXPECTED_ENDPOINTS)) {
+  assert.equal(deploymentEnvName(slug).startsWith("COMFY_BASE_URL_"), true);
+  assert.equal(deploymentBaseUrl(slug), url);
+  assert.equal(deploymentTarget(slug).baseUrl, url);
+  assert.equal(url.includes("cloud.comfy.org"), false);
+}
+process.env.COMFY_CLOUD_BASE_URL = "https://cloud.comfy.org";
+assert.equal(deploymentBaseUrl("product-relight"), EXPECTED_ENDPOINTS["product-relight"]);
+delete process.env.COMFY_CLOUD_BASE_URL;
+process.env.COMFY_BASE_URL_IMAGE_UPSCALER = "https://dep-override.stg.run.comfy.app";
+assert.equal(deploymentBaseUrl("image-upscaler"), "https://dep-override.stg.run.comfy.app");
+assert.equal(deploymentBaseUrl("sprite-generator"), EXPECTED_ENDPOINTS["sprite-generator"]);
+assert.throws(() => {
+  process.env.COMFY_BASE_URL_PRODUCT_RELIGHT = "https://cloud.comfy.org";
+  deploymentBaseUrl("product-relight");
+}, /run\.comfy\.app/);
+delete process.env.COMFY_BASE_URL_PRODUCT_RELIGHT;
+delete process.env.COMFY_BASE_URL_IMAGE_UPSCALER;
+
+const stopped = deploymentFailureMessage("Product Relight", "deployment_stopped", null);
+assert.match(stopped ?? "", /stopped/);
+assert.match(stopped ?? "", /3/);
+const cold = deploymentFailureMessage("Image Upscaler", "deployment_not_ready", "45");
+assert.match(cold ?? "", /cold-starting/);
+assert.match(cold ?? "", /45 seconds/);
+assert.equal(deploymentFailureMessage("Sprite Generator", "invalid_workflow", null), null);
+assert.equal(deploymentFailureMessage("Sprite Generator", "queue_full", null), null);
+
+const routed = publicRouteId("virtual-try-on", "11111111-1111-4111-8111-111111111111");
+assert.equal(parsePublicRouteId(routed)?.app, "virtual-try-on");
+assert.equal(parsePublicRouteId(routed)?.id, "11111111-1111-4111-8111-111111111111");
+assert.equal(parsePublicRouteId("11111111-1111-4111-8111-111111111111"), null);
+
+for (const [name, value] of Object.entries(savedDeploymentEnv)) {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
+if (savedCloudBase === undefined) delete process.env.COMFY_CLOUD_BASE_URL;
+else process.env.COMFY_CLOUD_BASE_URL = savedCloudBase;
 
 const relight = mustApp("product-relight");
 const upscale = mustApp("image-upscaler");
@@ -132,6 +197,7 @@ assert.equal(assetForm.get("tags"), '["input"]');
 
 const savedSecret = process.env.OUTPUT_SIGNING_SECRET;
 const savedKey = process.env.COMFY_CLOUD_API_KEY;
+const savedPreferredKey = process.env.COMFY_API_KEY;
 process.env.OUTPUT_SIGNING_SECRET = "test-output-secret";
 const assetId = "11111111-1111-4111-8111-111111111111";
 const goodSig = signAssetId(assetId);
@@ -140,15 +206,22 @@ assert.equal(verifyAssetSignature(assetId, goodSig.slice(0, -1) + (goodSig.endsW
 assert.equal(verifyAssetSignature("22222222-2222-4222-8222-222222222222", goodSig), false);
 assert.equal(verifyAssetSignature(assetId, null), false);
 delete process.env.OUTPUT_SIGNING_SECRET;
+delete process.env.COMFY_API_KEY;
 process.env.COMFY_CLOUD_API_KEY = "key-a";
+assert.equal(apiKey(), "key-a");
 const fromKeyA = signAssetId(assetId);
 process.env.COMFY_CLOUD_API_KEY = "key-b";
 assert.notEqual(signAssetId(assetId), fromKeyA);
 assert.equal(verifyAssetSignature(assetId, fromKeyA), false);
+process.env.COMFY_API_KEY = "preferred-key";
+assert.equal(apiKey(), "preferred-key");
+assert.notEqual(signAssetId(assetId), fromKeyA);
 if (savedSecret === undefined) delete process.env.OUTPUT_SIGNING_SECRET;
 else process.env.OUTPUT_SIGNING_SECRET = savedSecret;
 if (savedKey === undefined) delete process.env.COMFY_CLOUD_API_KEY;
 else process.env.COMFY_CLOUD_API_KEY = savedKey;
+if (savedPreferredKey === undefined) delete process.env.COMFY_API_KEY;
+else process.env.COMFY_API_KEY = savedPreferredKey;
 
 async function main() {
 const wide = await sharp({

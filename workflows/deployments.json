@@ -1,0 +1,39 @@
+{
+  "$comment": "Personal Comfy API deployments (account: personal, GPU rtx-pro-6000-server, region us, min 0 / max 1). Each app submits Comfy API v2 to its own https://<deployment>.run.comfy.app host. These defaults match the personal endpoint list. Override one host with the env var in `env` (Preview/Production). Do not point an app at https://cloud.comfy.org. COMFY_CLOUD_BASE_URL is ignored.",
+  "account": "personal",
+  "gpu": "rtx-pro-6000-server",
+  "region": "us",
+  "activeDeploymentLimit": 3,
+  "apps": {
+    "product-relight": {
+      "deploymentId": "dep-1a2d3e32-57f0-4617-8ee1-a302160f4cb8",
+      "endpointUrl": "https://dep-1a2d3e32-57f0-4617-8ee1-a302160f4cb8.run.comfy.app",
+      "releaseId": "62f59cb5-5d96-49dc-995c-bcd828332b49",
+      "env": "COMFY_BASE_URL_PRODUCT_RELIGHT"
+    },
+    "image-upscaler": {
+      "deploymentId": "dep-226ed4ac-b5eb-4d8d-bb9c-51907d71718a",
+      "endpointUrl": "https://dep-226ed4ac-b5eb-4d8d-bb9c-51907d71718a.run.comfy.app",
+      "releaseId": "a7210d53-50c1-43d3-a43a-583b0f6d02ac",
+      "env": "COMFY_BASE_URL_IMAGE_UPSCALER"
+    },
+    "sprite-generator": {
+      "deploymentId": "dep-6e5a0ab1-8131-4ee8-acb7-ae1840160e13",
+      "endpointUrl": "https://dep-6e5a0ab1-8131-4ee8-acb7-ae1840160e13.run.comfy.app",
+      "releaseId": "d6aff212-53b5-422a-b138-e00101f7dfd1",
+      "env": "COMFY_BASE_URL_SPRITE_GENERATOR"
+    },
+    "background-removal": {
+      "deploymentId": "dep-e45cb437-0991-4689-9f7c-77d5748e3adc",
+      "endpointUrl": "https://dep-e45cb437-0991-4689-9f7c-77d5748e3adc.run.comfy.app",
+      "releaseId": "d69eeb62-449e-49fc-b5b1-f5ca8154ad25",
+      "env": "COMFY_BASE_URL_BACKGROUND_REMOVAL"
+    },
+    "virtual-try-on": {
+      "deploymentId": "dep-d99a045a-86e9-4251-bbae-0a88940f78d1",
+      "endpointUrl": "https://dep-d99a045a-86e9-4251-bbae-0a88940f78d1.run.comfy.app",
+      "releaseId": "26b4e39d-c251-44a8-bd84-51f84d985dcb",
+      "env": "COMFY_BASE_URL_VIRTUAL_TRY_ON"
+    }
+  }
+}

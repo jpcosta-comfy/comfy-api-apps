@@ -1,7 +1,8 @@
 # Sprite Generator
 
-- API workflow: `workflow_api.json` (Comfy API format, submitted verbatim to `POST /api/v2/jobs`)
-- Saved on Comfy Cloud (JP personal, for testing): `comfy-api-apps - Sprite Generator` - workflow id `48e49e4d-2a1d-4338-977d-36347a3b4a4d` - https://cloud.comfy.org/#48e49e4d-2a1d-4338-977d-36347a3b4a4d
+- API workflow: `workflow_api.json` (Comfy API format, submitted verbatim to this app's deployment `POST /api/v2/jobs`)
+- Runtime host: `workflows/deployments.json` → `sprite-generator` (`COMFY_BASE_URL_SPRITE_GENERATOR`)
+- Editor copy (not the runtime target): `comfy-api-apps - Sprite Generator` - workflow id `48e49e4d-2a1d-4338-977d-36347a3b4a4d` - https://cloud.comfy.org/#48e49e4d-2a1d-4338-977d-36347a3b4a4d
 
 Character image (or prompt only) -> sprite sheet grid. Uses the **Nano Banana 2** partner node.
 

@@ -39,7 +39,6 @@ export type AppConfig = {
 export type AppsConfig = {
   $comment?: string;
   account: string;
-  baseUrl: string;
   apps: Record<string, AppConfig>;
 };
 

@@ -1,12 +1,28 @@
 import { fetchJob } from "@/lib/comfy";
+import { deploymentFailureMessage, deploymentTarget, getDeployment } from "@/lib/deployments";
 import { isMockMode } from "@/lib/env";
 import { errorJson, errorResponse, AppError } from "@/lib/http";
-import { isMockJobId, isUuid } from "@/lib/ids";
+import { isMockJobId, isUuid, parsePublicRouteId, publicRouteId } from "@/lib/ids";
 import { mockJobView, readMockMeta } from "@/lib/mock";
 import { signJobView } from "@/lib/signing";
+import type { JobView } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function clarifyDeploymentError(appTitle: string, job: JobView): JobView {
+  if (!job.error) return job;
+  const message = deploymentFailureMessage(appTitle, job.error.code, null);
+  if (!message) return job;
+  return { ...job, error: { ...job.error, message } };
+}
+
+function scopeOutputs(app: string, job: JobView): JobView {
+  return {
+    ...job,
+    outputs: job.outputs.filter((output) => isUuid(output.id)).map((output) => ({ ...output, id: publicRouteId(app, output.id) })),
+  };
+}
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -17,8 +33,13 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       if (!meta) throw new AppError(404, "not_found", "Job not found.");
       return Response.json(signJobView(mockJobView(meta)));
     }
-    if (!isUuid(id)) return errorJson(404, "not_found", "Job not found.");
-    return Response.json(signJobView(await fetchJob(id)));
+    const routed = parsePublicRouteId(id);
+    if (!routed || !isUuid(routed.id) || !getDeployment(routed.app)) {
+      return errorJson(404, "not_found", "Job not found.");
+    }
+    const target = deploymentTarget(routed.app);
+    const job = clarifyDeploymentError(target.appTitle, await fetchJob(target, routed.id));
+    return Response.json(signJobView(scopeOutputs(routed.app, job)));
   } catch (error) {
     return errorResponse(error);
   }

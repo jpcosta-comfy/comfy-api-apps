@@ -1,7 +1,8 @@
 # Image Upscaler
 
-- API workflow: `workflow_api.json` (Comfy API format, submitted verbatim to `POST /api/v2/jobs`)
-- Saved on Comfy Cloud (JP personal, for testing): `comfy-api-apps - Image Upscaler` - workflow id `fb6f5a18-d7cf-496d-8c61-6b20fb80ac96` - https://cloud.comfy.org/#fb6f5a18-d7cf-496d-8c61-6b20fb80ac96
+- API workflow: `workflow_api.json` (Comfy API format, submitted verbatim to this app's deployment `POST /api/v2/jobs`)
+- Runtime host: `workflows/deployments.json` → `image-upscaler` (`COMFY_BASE_URL_IMAGE_UPSCALER`)
+- Editor copy (not the runtime target): `comfy-api-apps - Image Upscaler` - workflow id `fb6f5a18-d7cf-496d-8c61-6b20fb80ac96` - https://cloud.comfy.org/#fb6f5a18-d7cf-496d-8c61-6b20fb80ac96
 
 Model-based super-resolution.
 
