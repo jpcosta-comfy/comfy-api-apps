@@ -1,4 +1,5 @@
-import { comfyBaseUrl, apiKey } from "@/lib/env";
+import { deploymentFailureMessage, deploymentUnavailableMessage, type DeploymentTarget } from "@/lib/deployments";
+import { apiKey, missingKeyMessage } from "@/lib/env";
 import { AppError } from "@/lib/http";
 import type { JobBody } from "@/lib/workflow";
 import type { JobStatus, JobView } from "@/lib/types";
@@ -15,6 +16,8 @@ const STATUSES = new Set<JobStatus>([
 
 type ErrorEnvelope = {
   error?: { code?: string; message?: string };
+  code?: string;
+  message?: string;
 };
 
 type AssetRecord = {
@@ -36,17 +39,11 @@ type RawJob = {
   error?: { code?: string; message?: string } | null;
 };
 
-async function comfyFetch(pathname: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+async function comfyFetch(target: DeploymentTarget, pathname: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const key = apiKey();
-  if (!key) {
-    throw new AppError(
-      500,
-      "missing_key",
-      "Set COMFY_CLOUD_API_KEY on the server, or COMFY_MOCK=1 for sample output.",
-    );
-  }
+  if (!key) throw new AppError(500, "missing_key", missingKeyMessage());
   try {
-    return await fetch(`${comfyBaseUrl()}${pathname}`, {
+    return await fetch(`${target.baseUrl}${pathname}`, {
       ...init,
       headers: {
         Authorization: `Bearer ${key}`,
@@ -55,28 +52,44 @@ async function comfyFetch(pathname: string, init: RequestInit, timeoutMs: number
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
+    if (error instanceof AppError) throw error;
     if (error instanceof Error && error.name === "TimeoutError") {
-      throw new AppError(504, "timeout", "Comfy Cloud timed out. Try again.");
+      throw new AppError(504, "timeout", deploymentUnavailableMessage(target.appTitle, target.baseUrl));
     }
-    throw new AppError(502, "upstream_error", "Could not reach Comfy Cloud.");
+    throw new AppError(503, "deployment_unavailable", deploymentUnavailableMessage(target.appTitle, target.baseUrl));
   }
 }
 
-async function throwEnvelope(res: Response): Promise<never> {
+async function throwEnvelope(target: DeploymentTarget, res: Response): Promise<never> {
   let code = "upstream_error";
-  let message = `Comfy Cloud returned ${res.status}.`;
+  let message = `${target.appTitle} deployment returned ${res.status}.`;
   try {
     const body = (await res.json()) as ErrorEnvelope;
-    if (body.error?.code) code = body.error.code;
-    if (body.error?.message) message = body.error.message;
+    const nested = body.error;
+    if (nested?.code) code = nested.code;
+    else if (body.code) code = body.code;
+    if (nested?.message) message = nested.message;
+    else if (body.message) message = body.message;
   } catch {
-    /* non-JSON body */
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      throw new AppError(503, "deployment_unavailable", deploymentUnavailableMessage(target.appTitle, target.baseUrl));
+    }
   }
+
+  const lifecycle = deploymentFailureMessage(target.appTitle, code, res.headers.get("retry-after"));
+  if (lifecycle) {
+    const status = code === "deployment_stopped" ? 422 : 503;
+    throw new AppError(status, code === "deployment_stopped" ? code : "deployment_not_ready", lifecycle);
+  }
+  if (code === "unauthorized" || res.status === 401) {
+    throw new AppError(401, "unauthorized", "The Comfy API key was rejected. Check COMFY_API_KEY (or COMFY_CLOUD_API_KEY) on the server.");
+  }
+
   const status = res.status >= 400 && res.status < 600 ? res.status : 502;
   throw new AppError(status, code, message);
 }
 
-/** Multipart field order is required. Cloud returns 422 if `file` precedes `content_type`. */
+/** Multipart field order is required. The deployment returns 422 if `file` precedes `content_type`. */
 export function buildAssetForm(png: Buffer, filePath: string): FormData {
   const form = new FormData();
   form.append("content_type", "image/png");
@@ -86,18 +99,18 @@ export function buildAssetForm(png: Buffer, filePath: string): FormData {
   return form;
 }
 
-export async function uploadAsset(png: Buffer, filePath: string): Promise<string> {
+export async function uploadAsset(target: DeploymentTarget, png: Buffer, filePath: string): Promise<string> {
   const form = buildAssetForm(png, filePath);
-
-  const res = await comfyFetch("/api/v2/assets", { method: "POST", body: form }, 60_000);
-  if (!res.ok) await throwEnvelope(res);
+  const res = await comfyFetch(target, "/api/v2/assets", { method: "POST", body: form }, 60_000);
+  if (!res.ok) await throwEnvelope(target, res);
   const asset = (await res.json()) as AssetRecord;
-  if (!asset.id) throw new AppError(502, "upstream_error", "Comfy Cloud did not return an asset id.");
+  if (!asset.id) throw new AppError(502, "upstream_error", `${target.appTitle} deployment did not return an asset id.`);
   return asset.id;
 }
 
-export async function submitJob(body: JobBody, idempotencyKey: string): Promise<string> {
+export async function submitJob(target: DeploymentTarget, body: JobBody, idempotencyKey: string): Promise<string> {
   const res = await comfyFetch(
+    target,
     "/api/v2/jobs",
     {
       method: "POST",
@@ -109,9 +122,9 @@ export async function submitJob(body: JobBody, idempotencyKey: string): Promise<
     },
     45_000,
   );
-  if (!res.ok) await throwEnvelope(res);
+  if (!res.ok) await throwEnvelope(target, res);
   const job = (await res.json()) as RawJob;
-  if (!job.id) throw new AppError(502, "upstream_error", "Comfy Cloud did not return a job id.");
+  if (!job.id) throw new AppError(502, "upstream_error", `${target.appTitle} deployment did not return a job id.`);
   return job.id;
 }
 
@@ -139,18 +152,18 @@ export function mapJob(job: RawJob): JobView {
   };
 }
 
-export async function fetchJob(id: string): Promise<JobView> {
-  const res = await comfyFetch(`/api/v2/jobs/${encodeURIComponent(id)}`, { method: "GET" }, 20_000);
-  if (!res.ok) await throwEnvelope(res);
+export async function fetchJob(target: DeploymentTarget, id: string): Promise<JobView> {
+  const res = await comfyFetch(target, `/api/v2/jobs/${encodeURIComponent(id)}`, { method: "GET" }, 20_000);
+  if (!res.ok) await throwEnvelope(target, res);
   return mapJob((await res.json()) as RawJob);
 }
 
-export async function fetchAssetUrl(id: string): Promise<string> {
-  const res = await comfyFetch(`/api/v2/assets/${encodeURIComponent(id)}`, { method: "GET" }, 20_000);
-  if (!res.ok) await throwEnvelope(res);
+export async function fetchAssetUrl(target: DeploymentTarget, id: string): Promise<string> {
+  const res = await comfyFetch(target, `/api/v2/assets/${encodeURIComponent(id)}`, { method: "GET" }, 20_000);
+  if (!res.ok) await throwEnvelope(target, res);
   const asset = (await res.json()) as AssetRecord;
   if (!asset.url || !asset.url.startsWith("https://")) {
-    throw new AppError(502, "upstream_error", "Comfy Cloud did not return a signed output URL.");
+    throw new AppError(502, "upstream_error", `${target.appTitle} deployment did not return a signed output URL.`);
   }
   return asset.url;
 }

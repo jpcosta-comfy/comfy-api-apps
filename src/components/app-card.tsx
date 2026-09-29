@@ -190,8 +190,8 @@ export function AppCard({ app }: { app: CatalogApp }) {
       let failures = 0;
       let job: JobView | null = null;
       while (!job || !TERMINAL_STATUSES.includes(job.status)) {
-        if (Date.now() - started > 180_000) {
-          throw new Error("Timed out waiting for this job. It may still finish on Comfy Cloud.");
+        if (Date.now() - started > 8 * 60 * 1000) {
+          throw new Error("Timed out waiting for this deployment. If it is stopped, start it (3 active max). If it is still cold-starting, wait and run again.");
         }
         await sleep(job ? 1750 : 400, controller.signal);
         const statusRes = await fetch(`/api/jobs/${payload.jobId}`, { signal: controller.signal });
@@ -495,7 +495,7 @@ function statusLine(
   active: HistoryItem | null,
 ): string {
   if (error && phase === "error") return error;
-  if (phase === "queued") return "Queued · POST /api/v2/jobs";
+  if (phase === "queued") return "Queued · the deployment may be cold-starting";
   if (phase === "running") return `Running · ${Math.round(progress * 100)}%`;
   if (phase === "done" && active) return `Done · ${active.width} × ${active.height}`;
   const file = uploads.image || uploads.person;

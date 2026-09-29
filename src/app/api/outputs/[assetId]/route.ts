@@ -1,8 +1,9 @@
 import { getApp } from "@/lib/config";
 import { fetchAssetUrl } from "@/lib/comfy";
+import { deploymentTarget, getDeployment } from "@/lib/deployments";
 import { isMockMode } from "@/lib/env";
 import { errorResponse, AppError } from "@/lib/http";
-import { isMockOutputId, isUuid } from "@/lib/ids";
+import { isMockOutputId, parsePublicRouteId } from "@/lib/ids";
 import { contentTypeFor, sniffImage } from "@/lib/images";
 import { renderMockOutput } from "@/lib/mock";
 import { verifyAssetSignature } from "@/lib/signing";
@@ -43,9 +44,10 @@ export async function GET(request: Request, context: { params: Promise<{ assetId
       return attachment("output.png", "image/png", png);
     }
 
-    if (!isUuid(assetId)) throw new AppError(404, "not_found", "Output not found.");
+    const routed = parsePublicRouteId(assetId);
+    if (!routed || !getDeployment(routed.app)) throw new AppError(404, "not_found", "Output not found.");
 
-    const signed = await fetchAssetUrl(assetId);
+    const signed = await fetchAssetUrl(deploymentTarget(routed.app), routed.id);
     let upstream: Response;
     try {
       upstream = await fetch(signed, { redirect: "follow", signal: AbortSignal.timeout(60_000) });
@@ -56,7 +58,7 @@ export async function GET(request: Request, context: { params: Promise<{ assetId
       throw new AppError(502, "upstream_error", "Could not download the output image.");
     }
     const bytes = new Uint8Array(await upstream.arrayBuffer());
-    if (bytes.byteLength === 0) throw new AppError(502, "upstream_error", "Comfy Cloud returned an empty output.");
+    if (bytes.byteLength === 0) throw new AppError(502, "upstream_error", "The deployment returned an empty output.");
     if (bytes.byteLength > MAX_OUTPUT) throw new AppError(502, "upstream_error", "Output image is too large to proxy.");
 
     const kind = sniffImage(Buffer.from(bytes)) ?? "bin";

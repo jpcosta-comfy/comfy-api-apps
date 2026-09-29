@@ -1,10 +1,10 @@
 {
-  "$comment": "Swappable app -> workflow layer. To move to another Comfy Cloud account: change COMFY_CLOUD_API_KEY and (optionally) the cloudWorkflowId values below. The server submits the local workflow_api.json files, so IDs are for reference / opening in the Comfy Cloud editor only.",
-  "account": "personal (JP) - swap to work account",
-  "baseUrl": "https://cloud.comfy.org",
+  "$comment": "App -> workflow layer. Runs go to the per-app host in workflows/deployments.json (override with COMFY_BASE_URL_<SLUG>), not https://cloud.comfy.org. cloudWorkflowId values are only for opening a copy in the Comfy editor. Auth is COMFY_API_KEY, or COMFY_CLOUD_API_KEY if that is the name already set.",
+  "account": "personal (JP)",
   "apps": {
     "product-relight": {
       "title": "Product Relight",
+      "enabled": false,
       "workflow": "workflows/product-relight/workflow_api.json",
       "cloudWorkflowId": "b4f6d5c2-597a-46b5-924d-bd54f4b1f212",
       "cloudWorkflowName": "comfy-api-apps - Product Relight",
@@ -25,6 +25,7 @@
     },
     "image-upscaler": {
       "title": "Image Upscaler",
+      "enabled": false,
       "workflow": "workflows/image-upscaler/workflow_api.json",
       "cloudWorkflowId": "fb6f5a18-d7cf-496d-8c61-6b20fb80ac96",
       "cloudWorkflowName": "comfy-api-apps - Image Upscaler",
@@ -38,6 +39,7 @@
     },
     "sprite-generator": {
       "title": "Sprite Generator",
+      "enabled": true,
       "workflow": "workflows/sprite-generator/workflow_api.json",
       "workflowPromptOnly": "workflows/sprite-generator/workflow_api.prompt_only.json",
       "cloudWorkflowId": "48e49e4d-2a1d-4338-977d-36347a3b4a4d",
@@ -57,6 +59,7 @@
     },
     "virtual-try-on": {
       "title": "Virtual Try On",
+      "enabled": true,
       "workflow": "workflows/virtual-try-on/workflow_api.json",
       "cloudWorkflowId": "5163ca49-7c0b-4cdb-a2be-a897110b4ac1",
       "cloudWorkflowName": "comfy-api-apps - Virtual Try On",
@@ -73,6 +76,7 @@
     },
     "background-removal": {
       "title": "Background Removal",
+      "enabled": true,
       "workflow": "workflows/background-removal/workflow_api.json",
       "cloudWorkflowId": "ced40cbe-93c5-4bc9-8829-2cc5d31cfe6f",
       "cloudWorkflowName": "comfy-api-apps - Background Removal",

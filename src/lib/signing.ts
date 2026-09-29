@@ -1,11 +1,11 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { apiKey } from "@/lib/env";
 import type { JobView } from "@/lib/types";
 
 function signingKey(): string {
   const explicit = process.env.OUTPUT_SIGNING_SECRET?.trim();
   if (explicit) return explicit;
-  const apiKey = process.env.COMFY_CLOUD_API_KEY?.trim() ?? "";
-  return createHash("sha256").update(apiKey).digest("hex");
+  return createHash("sha256").update(apiKey() ?? "").digest("hex");
 }
 
 export function signAssetId(assetId: string): string {

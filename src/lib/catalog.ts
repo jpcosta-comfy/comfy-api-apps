@@ -4,7 +4,7 @@ import {
   FIT_OPTIONS,
   FORMAT_OPTIONS,
 } from "@/lib/choices";
-import { getApp, listAppIds, type AppConfig } from "@/lib/config";
+import { getApp, listVisibleAppIds, type AppConfig } from "@/lib/config";
 import type { CatalogApp, ClientControl, SpriteGrid } from "@/lib/types";
 
 const CHROME: Record<
@@ -180,7 +180,7 @@ function controlsFor(id: string, app: AppConfig): ClientControl[] {
 }
 
 export function buildCatalog(): CatalogApp[] {
-  return listAppIds().map((id) => {
+  return listVisibleAppIds().map((id) => {
     const app = getApp(id);
     const chrome = CHROME[id];
     if (!app || !chrome) {

@@ -1,7 +1,9 @@
 import { getApp } from "@/lib/config";
 import { uploadAsset, submitJob } from "@/lib/comfy";
-import { apiKey, isMockMode } from "@/lib/env";
+import { deploymentTarget } from "@/lib/deployments";
+import { apiKey, isMockMode, missingKeyMessage } from "@/lib/env";
 import { errorResponse, AppError } from "@/lib/http";
+import { publicRouteId } from "@/lib/ids";
 import { prepareImage } from "@/lib/images";
 import { saveMockJob } from "@/lib/mock";
 import { parseRunParams } from "@/lib/params";
@@ -38,22 +40,19 @@ export async function POST(request: Request, context: { params: Promise<{ app: s
     const mock = isMockMode();
     const key = apiKey();
     if (!mock && !key) {
-      throw new AppError(
-        500,
-        "missing_key",
-        "Set COMFY_CLOUD_API_KEY on the server, or COMFY_MOCK=1 for sample output.",
-      );
+      throw new AppError(500, "missing_key", missingKeyMessage());
     }
+    const target = mock ? null : deploymentTarget(appId);
 
     const assets: Record<string, UploadedAsset> = {};
-    if (mock) {
+    if (mock || !target) {
       for (const role of Object.keys(files)) {
         assets[role] = { id: crypto.randomUUID(), filePath: filePathFor(role) };
       }
     } else {
       for (const [role, png] of Object.entries(files)) {
         const filePath = filePathFor(role);
-        const id = await uploadAsset(png, filePath);
+        const id = await uploadAsset(target, png, filePath);
         assets[role] = { id, filePath };
       }
     }
@@ -61,17 +60,20 @@ export async function POST(request: Request, context: { params: Promise<{ app: s
     const idempotencyKey = crypto.randomUUID();
     const body = buildJobBody(app, assets, params, key);
     let jobId: string;
-    if (mock) {
+    if (mock || !target) {
       const saved = await saveMockJob(app, appId, params, files);
       jobId = saved.id;
     } else {
-      jobId = await submitJob(body, idempotencyKey);
+      jobId = publicRouteId(appId, await submitJob(target, body, idempotencyKey));
     }
 
     return Response.json({
       jobId,
       idempotencyKey,
       request: redactJobBody(body),
+      deployment: target
+        ? { slug: target.slug, endpointUrl: target.baseUrl, deploymentId: target.deploymentId }
+        : undefined,
     });
   } catch (error) {
     return errorResponse(error);

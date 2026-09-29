@@ -1,7 +1,8 @@
 # Background Removal
 
-- API workflow: `workflow_api.json` (Comfy API format, submitted verbatim to `POST /api/v2/jobs`)
-- Saved on Comfy Cloud (JP personal, for testing): `comfy-api-apps - Background Removal` - workflow id `ced40cbe-93c5-4bc9-8829-2cc5d31cfe6f` - https://cloud.comfy.org/#ced40cbe-93c5-4bc9-8829-2cc5d31cfe6f
+- API workflow: `workflow_api.json` (Comfy API format, submitted verbatim to this app's deployment `POST /api/v2/jobs`)
+- Runtime host: `workflows/deployments.json` → `background-removal` (`COMFY_BASE_URL_BACKGROUND_REMOVAL`)
+- Editor copy (not the runtime target): `comfy-api-apps - Background Removal` - workflow id `ced40cbe-93c5-4bc9-8829-2cc5d31cfe6f` - https://cloud.comfy.org/#ced40cbe-93c5-4bc9-8829-2cc5d31cfe6f
 
 Foreground cut-out with BiRefNet (core nodes, same as template `utility_birefnet_remove_background`).
 

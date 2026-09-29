@@ -26,7 +26,9 @@ export type JobView = {
 export type RunResponse = {
   jobId: string;
   idempotencyKey: string;
+  /** Exact JSON body posted to the deployment's POST /api/v2/jobs, with the partner key redacted. */
   request: unknown;
+  deployment?: { slug: string; endpointUrl: string; deploymentId: string };
 };
 
 export type SegControl = {

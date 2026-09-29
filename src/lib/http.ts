@@ -18,7 +18,7 @@ export function errorResponse(error: unknown): Response {
     return errorJson(error.status, error.code, error.message);
   }
   if (error instanceof Error && error.name === "TimeoutError") {
-    return errorJson(504, "timeout", "Comfy Cloud timed out. Try again.");
+    return errorJson(504, "timeout", "The deployment timed out. If it is cold-starting, wait and run again.");
   }
   console.error(error);
   return errorJson(500, "internal", "Something went wrong running this app.");
