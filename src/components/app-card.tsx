@@ -559,7 +559,7 @@ function UploadField({
             <div className="thumb">
               <img src={upload.url} alt="" />
             </div>
-            <div>
+            <div className="up-meta">
               <div className="fn">{upload.name}</div>
               <div className="dim">
                 {upload.width} × {upload.height}

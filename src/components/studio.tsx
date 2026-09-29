@@ -60,7 +60,7 @@ export function Studio({
           ‹
         </button>
         {apps.map((item, itemIndex) => (
-          <div key={item.id} hidden={itemIndex !== index}>
+          <div key={item.id} className="stage" hidden={itemIndex !== index}>
             <AppCard app={item} />
           </div>
         ))}
@@ -69,14 +69,16 @@ export function Studio({
         </button>
       </div>
       <div className="dots">
-        {apps.map((item, itemIndex) => (
-          <button key={item.id} type="button" className={itemIndex === index ? "on" : ""} aria-label={item.name} onClick={() => setIndex(itemIndex)} />
-        ))}
-        <span className="count">
-          {index + 1} / {count}
-        </span>
+        <p className="foot-note">The API key stays on the server. Arrow keys move between apps.</p>
+        <div className="dotrow">
+          {apps.map((item, itemIndex) => (
+            <button key={item.id} type="button" className={itemIndex === index ? "on" : ""} aria-label={item.name} onClick={() => setIndex(itemIndex)} />
+          ))}
+          <span className="count">
+            {index + 1} / {count}
+          </span>
+        </div>
       </div>
-      <p className="foot-note">The API key stays on the server. Arrow keys move between apps.</p>
       </main>
     </div>
   );
