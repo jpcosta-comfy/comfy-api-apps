@@ -3,7 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { buildAssetForm } from "../src/lib/comfy";
-import { getApp, listAppIds, type AppConfig } from "../src/lib/config";
+import { buildCatalog } from "../src/lib/catalog";
+import { getApp, listAppIds, listVisibleAppIds, type AppConfig } from "../src/lib/config";
 import {
   deploymentBaseUrl,
   deploymentEnvName,
@@ -42,6 +43,14 @@ for (const name of deploymentEnvNames) delete process.env[name];
 delete process.env.COMFY_CLOUD_BASE_URL;
 
 assert.deepEqual([...listAppIds()].sort(), Object.keys(EXPECTED_ENDPOINTS).sort());
+assert.deepEqual(listVisibleAppIds(), ["sprite-generator", "virtual-try-on", "background-removal"]);
+assert.deepEqual(
+  buildCatalog().map((app) => app.id),
+  ["sprite-generator", "virtual-try-on", "background-removal"],
+);
+assert.equal(getApp("product-relight")?.enabled, false);
+assert.equal(getApp("image-upscaler")?.enabled, false);
+assert.equal(getApp("sprite-generator")?.enabled, true);
 assert.deepEqual([...listDeploymentSlugs()].sort(), Object.keys(EXPECTED_ENDPOINTS).sort());
 for (const [slug, url] of Object.entries(EXPECTED_ENDPOINTS)) {
   assert.equal(deploymentEnvName(slug).startsWith("COMFY_BASE_URL_"), true);

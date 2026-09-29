@@ -1,6 +1,8 @@
 # Comfy API Apps
 
-Five small, production-style web apps that run real ComfyUI workflows on **personal Comfy API deployments** (`https://<deployment>.run.comfy.app`). Each app calls **its own** deployment with Comfy API v2. The browser never sees the API key, and runs do not go to `https://cloud.comfy.org`.
+Production-style web apps that run real ComfyUI workflows on **personal Comfy API deployments** (`https://<deployment>.run.comfy.app`). Each app calls **its own** deployment with Comfy API v2. The browser never sees the API key, and runs do not go to `https://cloud.comfy.org`.
+
+The carousel shows Sprite Generator, Virtual Try On, and Background Removal. Product Relight and Image Upscaler stay wired (`workflows/apps.config.json` has `"enabled": false`) and are omitted from the nav.
 
 | App | Deployment | Engine |
 |---|---|---|

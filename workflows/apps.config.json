@@ -4,6 +4,7 @@
   "apps": {
     "product-relight": {
       "title": "Product Relight",
+      "enabled": false,
       "workflow": "workflows/product-relight/workflow_api.json",
       "cloudWorkflowId": "b4f6d5c2-597a-46b5-924d-bd54f4b1f212",
       "cloudWorkflowName": "comfy-api-apps - Product Relight",
@@ -24,6 +25,7 @@
     },
     "image-upscaler": {
       "title": "Image Upscaler",
+      "enabled": false,
       "workflow": "workflows/image-upscaler/workflow_api.json",
       "cloudWorkflowId": "fb6f5a18-d7cf-496d-8c61-6b20fb80ac96",
       "cloudWorkflowName": "comfy-api-apps - Image Upscaler",
@@ -37,6 +39,7 @@
     },
     "sprite-generator": {
       "title": "Sprite Generator",
+      "enabled": true,
       "workflow": "workflows/sprite-generator/workflow_api.json",
       "workflowPromptOnly": "workflows/sprite-generator/workflow_api.prompt_only.json",
       "cloudWorkflowId": "48e49e4d-2a1d-4338-977d-36347a3b4a4d",
@@ -56,6 +59,7 @@
     },
     "virtual-try-on": {
       "title": "Virtual Try On",
+      "enabled": true,
       "workflow": "workflows/virtual-try-on/workflow_api.json",
       "cloudWorkflowId": "5163ca49-7c0b-4cdb-a2be-a897110b4ac1",
       "cloudWorkflowName": "comfy-api-apps - Virtual Try On",
@@ -72,6 +76,7 @@
     },
     "background-removal": {
       "title": "Background Removal",
+      "enabled": true,
       "workflow": "workflows/background-removal/workflow_api.json",
       "cloudWorkflowId": "ced40cbe-93c5-4bc9-8829-2cc5d31cfe6f",
       "cloudWorkflowName": "comfy-api-apps - Background Removal",

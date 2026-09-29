@@ -19,6 +19,8 @@ export type ParamSpec = {
 
 export type AppConfig = {
   title: string;
+  /** When false, the app stays configured but is omitted from the carousel. */
+  enabled?: boolean;
   workflow: string;
   workflowPromptOnly?: string;
   cloudWorkflowId: string;
@@ -54,6 +56,11 @@ export function loadConfig(): AppsConfig {
 
 export function listAppIds(): string[] {
   return Object.keys(loadConfig().apps);
+}
+
+/** Apps shown in the carousel. `enabled: false` hides an app without removing its wiring. */
+export function listVisibleAppIds(): string[] {
+  return listAppIds().filter((id) => getApp(id)?.enabled !== false);
 }
 
 export function getApp(id: string): AppConfig | null {
