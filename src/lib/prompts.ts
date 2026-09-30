@@ -50,19 +50,16 @@ export function buildPrompt(app: AppConfig, params: RunParams): string {
     if (!style) bad("Choose a style.");
     if (!motion) bad("Choose a motion.");
     if (!grid) bad("Choose a frame count.");
+    if (!params.hasImage) bad("Upload a character image.");
     const description = (params.description ?? "").trim();
-    const subject = params.hasImage
-      ? description
-        ? `the character in the reference image, ${description}`
-        : "the character in the reference image"
-      : description;
-    if (!subject) bad("Upload a character image or describe one.");
+    const detail = description ? `, ${description}` : "";
     return app.promptTemplate
-      .replaceAll("{subject}", subject)
+      .replaceAll("{subject}", "the character in the reference image")
       .replaceAll("{frames}", frames)
       .replaceAll("{motion}", motion)
       .replaceAll("{grid}", grid)
-      .replaceAll("{style}", style);
+      .replaceAll("{style}", style)
+      .replaceAll("{description}", detail);
   }
 
   const template = app.params.prompt?.template;

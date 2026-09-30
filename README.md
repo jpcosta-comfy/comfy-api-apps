@@ -8,7 +8,7 @@ The carousel shows Sprite Generator, Virtual Try On, and Background Removal. Pro
 |---|---|---|
 | Product Relight (Studio / Golden / **Neon**) | https://dep-1a2d3e32-57f0-4617-8ee1-a302160f4cb8.run.comfy.app | Qwen-Image-Edit-2509 + Relight LoRA (GPU) |
 | Image Upscaler (2x / 4x) | https://dep-226ed4ac-b5eb-4d8d-bb9c-51907d71718a.run.comfy.app | 4x-UltraSharp (GPU) |
-| Sprite Generator (image or prompt -> sprite sheet) | https://dep-6e5a0ab1-8131-4ee8-acb7-ae1840160e13.run.comfy.app | Nano Banana 2 partner node |
+| Sprite Generator (image -> 8-frame sprite sheet) | https://dep-6e5a0ab1-8131-4ee8-acb7-ae1840160e13.run.comfy.app | Nano Banana 2 partner node (`template_purz_nb2_single_image_sprite_sheet`) |
 | Virtual Try On (person + garment) | https://dep-d99a045a-86e9-4251-bbae-0a88940f78d1.run.comfy.app | FLUX VTO partner node |
 | Background Removal | https://dep-e45cb437-0991-4689-9f7c-77d5748e3adc.run.comfy.app | BiRefNet (GPU) |
 
@@ -70,7 +70,7 @@ src/app/api/outputs/[assetId]       proxy output bytes after checking the HMAC `
 src/                                 Next.js App Router UI
 ```
 
-Sprite prompt-only runs use `workflows/sprite-generator/workflow_api.prompt_only.json` when no image is uploaded. White and lilac backgrounds, and WebP export, for Background Removal are composited in the browser. The cut-out from the deployment is an RGBA PNG.
+Sprite Generator requires a character image and always asks Nano Banana 2 for a 4×2 sheet at 16:9 / 2K. White and lilac backgrounds, and WebP export, for Background Removal are composited in the browser. The cut-out from the deployment is an RGBA PNG.
 
 ## Deploy
 Vercel project `comfy-api-apps`, git-connected to `jpcosta-comfy/comfy-api-apps` (`main` -> production).

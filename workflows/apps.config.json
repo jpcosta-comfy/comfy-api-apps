@@ -41,20 +41,18 @@
       "title": "Sprite Generator",
       "enabled": true,
       "workflow": "workflows/sprite-generator/workflow_api.json",
-      "workflowPromptOnly": "workflows/sprite-generator/workflow_api.prompt_only.json",
       "cloudWorkflowId": "48e49e4d-2a1d-4338-977d-36347a3b4a4d",
       "cloudWorkflowName": "comfy-api-apps - Sprite Generator",
       "partnerNodes": true,
-      "imageInputs": { "image": { "node": "1", "input": "image", "maxSide": 1024, "optional": true } },
+      "imageInputs": { "image": { "node": "1", "input": "image", "maxSide": 1024 } },
       "params": {
-        "prompt": { "node": "2", "input": "prompt", "builtFrom": ["style", "motion", "frames", "description"] },
-        "aspect_ratio": { "node": "2", "input": "aspect_ratio", "map": { "4": "1:1", "8": "16:9", "12": "21:9" } },
+        "prompt": { "node": "2", "input": "prompt", "builtFrom": ["style", "motion", "description"] },
         "seed": { "node": "2", "input": "seed" }
       },
-      "grids": { "4": "2x2", "8": "4x2", "12": "6x2" },
-      "styles": { "3d": "clean 3D cartoon game-asset style", "toon": "flat 2D toon style with bold outlines", "pixel": "crisp pixel-art style, 32x32-pixel look, limited palette" },
-      "motions": { "idle": "idle breathing loop", "walk": "side-view walk cycle, facing right", "jump": "jump sequence (crouch, take-off, air, landing)" },
-      "promptTemplate": "Create a character sprite sheet of {subject}: a {frames}-frame {motion}. Arrange the {frames} frames in a {grid} grid of equal cells, reading left to right, top to bottom. Keep the exact same character design, colors, proportions and outfit in every frame; only the pose changes to form a smooth loop. {style}, full body visible in each cell, character centered, consistent scale, plain flat white background, no text, no labels, no grid lines.",
+      "grids": { "8": "4x2" },
+      "styles": { "pixel": "pixelart, 32x32 pixels", "toon": "flat 2D toon", "3d": "clean 3D cartoon" },
+      "motions": { "idle": "idle breathing loop, subtle breathing, soft blink", "walk": "side-view walk cycle, facing right", "jump": "jump sequence, crouch, take-off, air, landing" },
+      "promptTemplate": "{style} sprite sheet of the character in the reference image, white background, 4 x 2 grid of images\n\n{motion}{description}",
       "output": { "node": "3" }
     },
     "virtual-try-on": {

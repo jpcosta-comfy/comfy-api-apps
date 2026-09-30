@@ -139,36 +139,41 @@ const up2 = buildJobBody(upscale, { image: { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaa
 assert.equal(up2.workflow["4"].inputs.scale_by, 0.5);
 
 const secret = "super-secret-key";
-const promptOnly = buildJobBody(
-  sprite,
-  {},
-  { style: "pixel", motion: "jump", frames: "12", description: "a small friendly robot", seed: 7, hasImage: false },
-  secret,
+assert.throws(
+  () =>
+    buildJobBody(
+      sprite,
+      {},
+      { style: "pixel", motion: "jump", frames: "8", description: "a small friendly robot", seed: 7, hasImage: false },
+      secret,
+    ),
+  /required image/i,
 );
-assert.equal(promptOnly.workflow["1"], undefined);
-assert.equal(promptOnly.workflow["2"].class_type, "GeminiImage2Node");
-assert.equal(promptOnly.workflow["2"].inputs.aspect_ratio, "21:9");
-assert.equal(promptOnly.workflow["2"].inputs.seed, 7);
-const spritePrompt = String(promptOnly.workflow["2"].inputs.prompt);
-assert.ok(spritePrompt.includes("a small friendly robot"));
-assert.ok(spritePrompt.includes("12-frame"));
-assert.ok(spritePrompt.includes("6x2"));
-assert.ok(spritePrompt.includes("pixel-art"));
-assert.equal(promptOnly.extra_data?.api_key_comfy_org, secret);
-const redacted = JSON.stringify(redactJobBody(promptOnly));
-assert.equal(redacted.includes(secret), false);
-assert.ok(redacted.includes("<redacted>"));
 
 const withImage = buildJobBody(
   sprite,
   { image: { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", filePath: "input.png" } },
-  { style: "3d", motion: "walk", frames: "4", description: "", seed: 3, hasImage: true },
+  { style: "pixel", motion: "jump", frames: "8", description: "a small friendly robot", seed: 7, hasImage: true },
   secret,
 );
 assert.equal(withImage.workflow["1"].class_type, "LoadImage");
-assert.ok(String(withImage.workflow["2"].inputs.prompt).includes("the character in the reference image"));
-assert.equal(withImage.workflow["2"].inputs.aspect_ratio, "1:1");
+assert.equal(withImage.workflow["2"].class_type, "GeminiNanoBanana2");
+assert.equal(withImage.workflow["2"].inputs.aspect_ratio, "16:9");
+assert.equal(withImage.workflow["2"].inputs.resolution, "2K");
+assert.equal(withImage.workflow["2"].inputs.thinking_level, "HIGH");
+assert.equal(withImage.workflow["2"].inputs.seed, 7);
+assert.equal(withImage.workflow["2"].inputs.model, "Nano Banana 2 (Gemini 3.1 Flash Image)");
+const spritePrompt = String(withImage.workflow["2"].inputs.prompt);
+assert.ok(spritePrompt.includes("a small friendly robot"));
+assert.ok(spritePrompt.includes("4 x 2"));
+assert.ok(spritePrompt.includes("pixelart, 32x32 pixels"));
+assert.ok(spritePrompt.includes("jump sequence"));
+assert.ok(spritePrompt.startsWith("pixelart, 32x32 pixels sprite sheet of the character in the reference image"));
 assert.deepEqual(withImage.workflow["2"].inputs.images, ["1", 0]);
+assert.equal(withImage.extra_data?.api_key_comfy_org, secret);
+const redacted = JSON.stringify(redactJobBody(withImage));
+assert.equal(redacted.includes(secret), false);
+assert.ok(redacted.includes("<redacted>"));
 
 const vto = buildJobBody(
   tryon,
@@ -280,13 +285,13 @@ assert.equal(upMeta.height, 96);
 const sheet = await saveMockJob(
   sprite,
   "sprite-generator",
-  { style: "3d", motion: "walk", frames: "4", description: "robot" },
+  { style: "3d", motion: "walk", frames: "8", description: "robot" },
   {},
 );
 const sheetPng = await renderMockOutput(sheet.outputId, sprite.grids);
 const sheetMeta = await sharp(sheetPng).metadata();
-assert.equal(sheetMeta.width, 1024);
-assert.equal(sheetMeta.height, 1024);
+assert.equal(sheetMeta.width, 1600);
+assert.equal(sheetMeta.height, 860);
 
 const vtoJob = await saveMockJob(tryon, "virtual-try-on", { fit: "regular" }, { person: sample, garment });
 const vtoPng = await renderMockOutput(vtoJob.outputId, undefined);

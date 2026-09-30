@@ -121,17 +121,9 @@ export function AppCard({ app }: { app: CatalogApp }) {
     for (const image of app.images) {
       if (!image.optional && !uploads[image.key]) {
         if (app.kind === "tryon") return "Upload a person and a garment.";
-        if (app.kind === "sprite") {
-          const description = controlValue(values, "description").trim();
-          if (!uploads.image && !description) return "Upload a character image or describe one.";
-          continue;
-        }
+        if (app.kind === "sprite") return "Upload a character image.";
         return "Upload an image first.";
       }
-    }
-    if (app.kind === "sprite") {
-      const description = controlValue(values, "description").trim();
-      if (!uploads.image && !description) return "Upload a character image or describe one.";
     }
     return null;
   }
@@ -143,7 +135,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
     }
     if (app.kind === "upscale") return `${controlValue(next, "scale")}×`;
     if (app.kind === "sprite") {
-      const frames = controlValue(next, "frames");
+      const frames = controlValue(next, "frames") || Object.keys(app.grids ?? {})[0] || "8";
       const grid = app.grids?.[frames];
       const gridLabel = grid ? `${grid.cols}×${grid.rows}` : frames;
       const style = controlValue(next, "style");
@@ -180,6 +172,9 @@ export function AppCard({ app }: { app: CatalogApp }) {
       for (const control of app.controls) {
         if (control.clientOnly) continue;
         form.append(control.key, controlValue(values, control.key));
+      }
+      if (app.kind === "sprite" && app.grids && !app.controls.some((control) => control.key === "frames")) {
+        form.append("frames", Object.keys(app.grids)[0] ?? "8");
       }
       if (nextSeed !== null) form.append("seed", String(nextSeed));
 
@@ -235,7 +230,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
         url,
         before,
         label: labelFor(),
-        frames: controlValue(values, "frames") || "4",
+        frames: controlValue(values, "frames") || Object.keys(app.grids ?? {})[0] || "8",
         width: dims.width,
         height: dims.height,
       };
@@ -288,7 +283,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
   const beforeUrl = active?.before.image || active?.before.person || "";
   const showCompare = view === 1 && app.views[1] === "Compare" && active && beforeUrl;
   const showSprite = view === 1 && app.kind === "sprite" && active;
-  const grid = app.grids?.[active?.frames || "4"] ?? { cols: 2, rows: 2 };
+  const grid = app.grids?.[active?.frames || Object.keys(app.grids ?? {})[0] || "8"] ?? { cols: 4, rows: 2 };
 
   const status = statusLine(phase, progress, error, uploads, active);
   const bar = phase === "idle" ? 0 : phase === "done" ? 1 : phase === "error" ? 0 : progress || (phase === "queued" ? 0.08 : 0.2);
@@ -422,7 +417,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
             </button>
           </div>
           <div className={`preview ${checker ? "checker" : ""}`} ref={previewRef} style={stageStyle}>
-            {!active && !app.images.some((image) => uploads[image.key]) && !(app.kind === "sprite" && controlValue(values, "description").trim()) ? (
+            {!active && !app.images.some((image) => uploads[image.key]) ? (
               <div className="pv-empty">
                 <div className="big">✦</div>
                 {app.empty}

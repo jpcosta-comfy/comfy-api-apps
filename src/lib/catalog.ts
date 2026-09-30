@@ -37,7 +37,7 @@ const CHROME: Record<
     runLabel: "Generate sheet",
     views: ["Sheet", "Preview"],
     kind: "sprite",
-    empty: "Upload a character or describe one",
+    empty: "Upload a character",
     images: [{ key: "image", label: "Input" }],
   },
   "virtual-try-on": {
@@ -113,8 +113,8 @@ function controlsFor(id: string, app: AppConfig): ClientControl[] {
       {
         type: "text",
         key: "description",
-        label: "Description",
-        placeholder: "Or describe a character…",
+        label: "Animation",
+        placeholder: "e.g. dancing, soft blink…",
         default: "",
       },
       {
@@ -122,7 +122,7 @@ function controlsFor(id: string, app: AppConfig): ClientControl[] {
         key: "style",
         label: "Style",
         options: Object.keys(app.styles).map((value) => ({ value, label: labelOf(value) })),
-        default: "3d",
+        default: "pixel",
       },
       {
         type: "select",
@@ -131,13 +131,17 @@ function controlsFor(id: string, app: AppConfig): ClientControl[] {
         options: Object.keys(app.motions).map((value) => ({ value, label: labelOf(value) })),
         default: "walk",
       },
-      {
-        type: "seg",
-        key: "frames",
-        label: "Frames",
-        options: frames.map((value) => ({ value, label: value })),
-        default: "4",
-      },
+      ...(frames.length > 1
+        ? [
+            {
+              type: "seg" as const,
+              key: "frames",
+              label: "Frames",
+              options: frames.map((value) => ({ value, label: value })),
+              default: frames[0],
+            },
+          ]
+        : []),
     ];
   }
   if (id === "virtual-try-on") {

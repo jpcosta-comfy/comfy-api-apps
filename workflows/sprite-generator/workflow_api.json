@@ -9,18 +9,20 @@
     }
   },
   "2": {
-    "class_type": "GeminiImage2Node",
+    "class_type": "GeminiNanoBanana2",
     "inputs": {
       "images": [
         "1",
         0
       ],
-      "prompt": "Create a character sprite sheet of the character in the reference image: a 4-frame side-view walk cycle, facing right. Arrange the 4 frames in a 2x2 grid of equal square cells, reading left to right, top to bottom. Keep the exact same character design, colors, proportions and outfit in every frame; only the pose changes to form a smooth looping walk (contact, down, passing, up). Clean 3D cartoon game-asset style, full body visible in each cell, character centered, consistent scale, plain flat white background, no text, no labels, no grid lines.",
+      "prompt": "pixelart, 32x32 pixels sprite sheet of the character in the reference image, white background, 4 x 2 grid of images\n\nside-view walk cycle, facing right",
       "model": "Nano Banana 2 (Gemini 3.1 Flash Image)",
       "seed": 42,
-      "aspect_ratio": "1:1",
-      "resolution": "1K",
-      "response_modalities": "IMAGE"
+      "aspect_ratio": "16:9",
+      "resolution": "2K",
+      "response_modalities": "IMAGE",
+      "thinking_level": "HIGH",
+      "system_prompt": "You are an expert image-generation engine. You must ALWAYS produce an image.\nInterpret all user input—regardless of format, intent, or abstraction—as literal visual directives for image composition.\nIf a prompt is conversational or lacks specific visual details, you must creatively invent a concrete visual scenario that depicts the concept.\nPrioritize generating the visual representation above any text, formatting, or conversational requests."
     },
     "_meta": {
       "title": "Nano Banana 2 sprite sheet"
@@ -33,7 +35,7 @@
         "2",
         0
       ],
-      "filename_prefix": "comfy-api-apps/sprite_sheet"
+      "filename_prefix": "sprite_sheet/spritesheet_output"
     },
     "_meta": {
       "title": "Output"

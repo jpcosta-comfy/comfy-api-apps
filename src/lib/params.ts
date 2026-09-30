@@ -41,13 +41,15 @@ export function parseRunParams(app: AppConfig, form: FormData, hasImage: boolean
   if (app.styles && app.motions && app.grids) {
     const style = text(form, "style");
     const motion = text(form, "motion");
-    const frames = text(form, "frames");
+    const gridKeys = Object.keys(app.grids);
+    let frames = text(form, "frames");
+    if (!frames && gridKeys.length === 1) frames = gridKeys[0];
     if (!app.styles[style]) bad("Choose a style.");
     if (!app.motions[motion]) bad("Choose a motion.");
     if (!app.grids[frames]) bad("Choose a frame count.");
     const description = text(form, "description");
     if (description.length > 800) bad("Description must be 800 characters or less.");
-    if (!hasImage && !description) bad("Upload a character image or describe one.");
+    if (!hasImage) bad("Upload a character image.");
     params.style = style;
     params.motion = motion;
     params.frames = frames;
