@@ -441,7 +441,17 @@ export function AppCard({ app }: { app: CatalogApp }) {
             {showCompare ? (
               <Compare before={beforeUrl} after={active.url} position={compare} width={previewWidth} onChange={setCompare} />
             ) : null}
-            {showSprite && active ? <SpritePlayer url={active.url} frames={Number(active.frames)} cols={grid.cols} rows={grid.rows} /> : null}
+            {showSprite && active ? (
+              <SpritePlayer
+                key={active.url}
+                url={active.url}
+                frames={Number(active.frames)}
+                cols={grid.cols}
+                rows={grid.rows}
+                sheetWidth={active.width}
+                sheetHeight={active.height}
+              />
+            ) : null}
             {toast ? (
               <div className="toast">
                 ✓ Saved <b>{toast}</b>
@@ -621,28 +631,91 @@ function Compare({
   );
 }
 
-function SpritePlayer({ url, frames, cols, rows }: { url: string; frames: number; cols: number; rows: number }) {
+function SpritePlayer({
+  url,
+  frames,
+  cols,
+  rows,
+  sheetWidth,
+  sheetHeight,
+}: {
+  url: string;
+  frames: number;
+  cols: number;
+  rows: number;
+  sheetWidth: number;
+  sheetHeight: number;
+}) {
+  const stageRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
+  const [measured, setMeasured] = useState<{ width: number; height: number } | null>(null);
+  const [box, setBox] = useState<{ width: number; height: number } | null>(null);
+  const sheetW = sheetWidth > 0 ? sheetWidth : (measured?.width ?? 0);
+  const sheetH = sheetHeight > 0 ? sheetHeight : (measured?.height ?? 0);
+  const cellW = sheetW / Math.max(1, cols);
+  const cellH = sheetH / Math.max(1, rows);
+
   useEffect(() => {
     const timer = window.setInterval(() => {
       setIndex((current) => (current + 1) % Math.max(1, frames));
     }, 111);
     return () => window.clearInterval(timer);
   }, [frames, url]);
+
+  useEffect(() => {
+    if (sheetWidth > 0 && sheetHeight > 0) return;
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => {
+      if (!cancelled) setMeasured({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.src = url;
+    return () => {
+      cancelled = true;
+    };
+  }, [url, sheetWidth, sheetHeight]);
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el || cellW <= 0 || cellH <= 0) return;
+    const fit = () => {
+      const style = getComputedStyle(el);
+      const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      const availW = Math.max(1, el.clientWidth - padX);
+      const availH = Math.max(1, el.clientHeight - padY);
+      const aspect = cellW / cellH;
+      let width = availW;
+      let height = width / aspect;
+      if (height > availH) {
+        height = availH;
+        width = height * aspect;
+      }
+      setBox({ width: Math.max(1, Math.round(width)), height: Math.max(1, Math.round(height)) });
+    };
+    const observer = new ResizeObserver(fit);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [cellW, cellH]);
+
   const col = index % cols;
   const row = Math.floor(index / cols);
   const x = cols <= 1 ? 0 : (col / (cols - 1)) * 100;
   const y = rows <= 1 ? 0 : (row / (rows - 1)) * 100;
   return (
-    <div className="sprite-stage">
-      <div
-        className="sprite-frame"
-        style={{
-          backgroundImage: `url("${url}")`,
-          backgroundSize: `${cols * 100}% ${rows * 100}%`,
-          backgroundPosition: `${x}% ${y}%`,
-        }}
-      />
+    <div className="sprite-stage" ref={stageRef}>
+      {box ? (
+        <div
+          className="sprite-frame"
+          style={{
+            width: box.width,
+            height: box.height,
+            backgroundImage: `url("${url}")`,
+            backgroundSize: `${cols * 100}% ${rows * 100}%`,
+            backgroundPosition: `${x}% ${y}%`,
+          }}
+        />
+      ) : null}
       <div className="cap">
         frame {index + 1} / {frames} · 9 fps
       </div>

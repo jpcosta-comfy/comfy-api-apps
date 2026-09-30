@@ -538,8 +538,18 @@ textarea.text { height: 44px; padding: 8px 12px; resize: none; }
 }
 .tag.b { left: 12px; }
 .tag.a { right: 12px; }
-.sprite-stage { background: #fff; }
-.sprite-frame { position: absolute; inset: 28px 28px 52px; background-repeat: no-repeat; }
+.sprite-stage {
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 24px 48px;
+}
+.sprite-frame {
+  position: relative;
+  flex: none;
+  background-repeat: no-repeat;
+}
 .cap {
   position: absolute;
   left: 0;
