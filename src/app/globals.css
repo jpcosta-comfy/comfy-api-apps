@@ -119,7 +119,7 @@ button { cursor: pointer; }
   min-height: 0;
   width: min(1680px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 8px 0 6px;
+  padding: 22px 0 6px;
   display: flex;
   flex-direction: column;
 }
@@ -163,7 +163,7 @@ button { cursor: pointer; }
   border-radius: 0;
   border: 0;
   box-shadow: none;
-  padding: 4px 0 0;
+  padding: 0;
   flex: 1;
   min-height: 0;
   height: 100%;
@@ -648,7 +648,7 @@ textarea.text { height: 44px; padding: 8px 12px; resize: none; }
     justify-content: flex-start;
     gap: 10px 16px;
   }
-  .page { display: block; width: min(1680px, calc(100% - 32px)); padding: 20px 0 40px; }
+  .page { display: block; width: min(1680px, calc(100% - 32px)); padding: 22px 0 40px; }
   .dots { display: block; margin-top: 16px; }
   .dotrow { margin: 8px 0 0; justify-content: center; }
   .foot-note { margin-top: 12px; }
