@@ -48,10 +48,6 @@ export function Studio({
         <div className="header-actions">{mock ? <span className="mockpill">Mock mode</span> : null}</div>
       </header>
       <main className="page">
-      <div className="intro">
-        <h1>Use it anywhere</h1>
-        <p className="lede">Sprite sheets, virtual try-on, and background removal. Any image you upload.</p>
-      </div>
       {!mock && !configured ? (
         <p className="warn">Set COMFY_API_KEY or COMFY_CLOUD_API_KEY on the server to run live jobs, or COMFY_MOCK=1 for sample output.</p>
       ) : null}
