@@ -1,56 +1,54 @@
 # Comfy API Apps
 
-Production-style web apps that run real ComfyUI workflows on **personal Comfy API deployments** (`https://<deployment>.run.comfy.app`). Each app calls **its own** deployment with Comfy API v2. The browser never sees the API key, and runs do not go to `https://cloud.comfy.org`.
+Sprite sheets, virtual try-on, and background removal, each running a real ComfyUI workflow on its own personal Comfy API deployment. The API key stays on the server.
 
-The carousel shows Sprite Generator, Virtual Try On, and Background Removal. Product Relight and Image Upscaler stay wired (`workflows/apps.config.json` has `"enabled": false`) and are omitted from the nav.
+Live: [comfy-api-apps.vercel.app](https://comfy-api-apps.vercel.app/)
 
-| App | Deployment | Engine |
+## Apps
+
+| App | What you do | Engine | Deployment |
+|---|---|---|---|
+| Sprite sheet generator | Upload a character. Choose style (pixel, toon, 3D), motion (idle, walk, jump), and an optional animation note. | Nano Banana 2. One 4×2 sheet at 16:9 / 2K. The browser slices it into the preview. | [sprite-generator](https://dep-6e5a0ab1-8131-4ee8-acb7-ae1840160e13.run.comfy.app) |
+| Virtual try-on | Upload a person and a garment. Choose slim, regular, or relaxed. | FLUX Virtual Try-On | [virtual-try-on](https://dep-d99a045a-86e9-4251-bbae-0a88940f78d1.run.comfy.app) |
+| Background removal | Upload a photo. Choose transparent, white, or lilac, then PNG or WebP. | BiRefNet. White, lilac, and WebP are composited in the browser. | [background-removal](https://dep-e45cb437-0991-4689-9f7c-77d5748e3adc.run.comfy.app) |
+
+The hosts above are the defaults in `workflows/deployments.json`. Workers are `--min 0 --max 1`, and only 3 deployments can be active at once, so a host may be stopped or still cold-starting.
+
+## How a run works
+
+1. The browser posts the image to `POST /api/run/[app]`. The server accepts png, jpg, or webp up to 15 MB, applies EXIF rotation, and resizes to that app's `maxSide` in `workflows/apps.config.json`.
+2. It uploads the PNG to that app's deployment with `POST /api/v2/assets`. The multipart fields go in this order: `content_type` (`image/png`), `file_path`, `tags` (`["input"]` as a JSON string), then `file`. Putting `file` first returns HTTP 422 `invalid_body`.
+3. `workflow_api.json` receives the asset id on each LoadImage, plus the prompt and seed from the controls.
+4. `POST /api/v2/jobs` on the same host, with an `Idempotency-Key`. Sprite sheet generator and Virtual try-on also send `extra_data.api_key_comfy_org` using the server key. Partner jobs use credits.
+5. The browser polls `GET /api/jobs/{app}~{jobId}` for up to 8 minutes. The app slug picks the deployment.
+6. Downloads go through `GET /api/outputs/{app}~{assetId}?sig=...`. The signature is checked, then the server loads a short-lived URL (about 6 hours) and streams the bytes.
+
+Every call to a deployment sends `Authorization: Bearer` and the server key.
+
+A stopped deployment (`deployment_stopped`, 422) needs `comfy deploy start` before another run will go through. A cold start (`deployment_not_ready`, 429) means wait, then run again.
+
+## Environment
+
+Server only. Locally that is `.env.local`. On Vercel, project `comfy-api-apps`, Production and Preview.
+
+| Name | Required | Notes |
 |---|---|---|
-| Product Relight (Studio / Golden / **Neon**) | https://dep-1a2d3e32-57f0-4617-8ee1-a302160f4cb8.run.comfy.app | Qwen-Image-Edit-2509 + Relight LoRA (GPU) |
-| Image Upscaler (2x / 4x) | https://dep-226ed4ac-b5eb-4d8d-bb9c-51907d71718a.run.comfy.app | 4x-UltraSharp (GPU) |
-| Sprite Generator (image -> 8-frame sprite sheet) | https://dep-6e5a0ab1-8131-4ee8-acb7-ae1840160e13.run.comfy.app | Nano Banana 2 partner node (`template_purz_nb2_single_image_sprite_sheet`) |
-| Virtual Try On (person + garment) | https://dep-d99a045a-86e9-4251-bbae-0a88940f78d1.run.comfy.app | FLUX VTO partner node |
-| Background Removal | https://dep-e45cb437-0991-4689-9f7c-77d5748e3adc.run.comfy.app | BiRefNet (GPU) |
+| `COMFY_API_KEY` | yes, unless the alias below is set | Personal Comfy platform key. Preferred name. |
+| `COMFY_CLOUD_API_KEY` | alias | Read when `COMFY_API_KEY` is unset. If both are set, `COMFY_API_KEY` wins. This is the key sent for partner nodes. |
+| `COMFY_BASE_URL_SPRITE_GENERATOR` | no | Override for that app. Default is in `workflows/deployments.json`. |
+| `COMFY_BASE_URL_VIRTUAL_TRY_ON` | no | Same. |
+| `COMFY_BASE_URL_BACKGROUND_REMOVAL` | no | Same. |
+| `COMFY_MOCK` | no | `1` returns sample images and skips the deployments. Leave unset for live runs. |
+| `OUTPUT_SIGNING_SECRET` | no | HMAC for download links. If unset, SHA-256 of the API key. |
 
-Checked-in defaults live in `workflows/deployments.json` (deployment id, release id, and the URL above). Workers are `--min 0 --max 1`, and only 3 deployments can be active at once, so a host may be **stopped** or **cold-starting**.
+Copy `.env.example` to `.env.local` and paste the key.
 
-## How a run works (server side, key never reaches the browser)
-1. Browser uploads the image(s) to our route handler. The server validates type (png/jpg/webp), size, decodes, auto-orients and downsizes to the per-app `maxSide` (see `workflows/apps.config.json`), re-encoding to PNG.
-2. `POST https://<that-app>.run.comfy.app/api/v2/assets` multipart, fields in this order: `content_type` (`image/png`), `file_path`, `tags` as a **JSON array string** (e.g. `["input"]`), then `file`. The deployment returns HTTP 422 `invalid_body` if `file` is sent before `content_type`. The response `id` is the asset id.
-3. The server loads `workflow_api.json`, puts `{"__type":"core/ASSET","info":{"id":"<asset id>","file_path":"<name>"}}` into each `LoadImage.inputs.image`, and applies the app params (prompt, seed, scale...).
-4. `POST https://<that-app>.run.comfy.app/api/v2/jobs` with `{"workflow": {...}}` and an `Idempotency-Key` header. For apps with partner nodes (sprite, try-on) also send `"extra_data": {"api_key_comfy_org": <the server API key>}`. The JSON returned to the browser as `request` is that body with the key redacted. `deployment.endpointUrl` is the host that received it.
-5. The browser polls `GET /api/jobs/{app}~{jobId}` (the slug picks the deployment). That route calls `GET /api/v2/jobs/{id}` on the same host until `succeeded | failed | canceled | expired`.
-6. Output ids are `{app}~{assetId}` plus an HMAC `sig`. `GET /api/outputs/{app}~{assetId}?sig=...` checks the signature, then `GET /api/v2/assets/{assetId}` on that deployment -> short-lived signed `url` (~6 h) and streams the bytes. Unsigned or mismatched ids are rejected. A bare asset id with no app slug is rejected, so the route cannot be pointed at a different host.
+## Local
 
-Auth on every deployment call: `Authorization: Bearer` the server key.
-
-If the deployment answers `deployment_stopped` (422), the app says that deployment is stopped and a retry will not run until it is started. If it answers `deployment_not_ready` (429), the app says it is cold-starting and to wait, then run again. A host that does not respond gets the same kind of message. The browser keeps polling an accepted job for up to 8 minutes.
-
-## Env vars
-Set these on the server only (local `.env.local`, and Vercel project `comfy-api-apps` → Settings → Environment Variables, Production and Preview).
-
-| Name | Required on Vercel | Notes |
-|---|---|---|
-| `COMFY_API_KEY` | yes, unless `COMFY_CLOUD_API_KEY` is already set | Personal Comfy platform API key. Preferred name. Paste the key in Vercel; do not commit it. |
-| `COMFY_CLOUD_API_KEY` | alias of the above | Still read when `COMFY_API_KEY` is unset. If both are set, `COMFY_API_KEY` wins. Same key is sent as `extra_data.api_key_comfy_org` for Sprite Generator and Virtual Try On. |
-| `COMFY_BASE_URL_PRODUCT_RELIGHT` | no | Override for Product Relight. Default in `workflows/deployments.json`. |
-| `COMFY_BASE_URL_IMAGE_UPSCALER` | no | Override for Image Upscaler. |
-| `COMFY_BASE_URL_SPRITE_GENERATOR` | no | Override for Sprite Generator. |
-| `COMFY_BASE_URL_BACKGROUND_REMOVAL` | no | Override for Background Removal. |
-| `COMFY_BASE_URL_VIRTUAL_TRY_ON` | no | Override for Virtual Try On. |
-| `COMFY_MOCK` | no | Set to `1` to skip deployments and return sample images. Do not set this in production if you want live runs. |
-| `OUTPUT_SIGNING_SECRET` | no | HMAC key for output download links. If unset, SHA-256 of the resolved API key (or of an empty string in mock mode). |
-
-`COMFY_CLOUD_BASE_URL` is **not** used. There is no shared Cloud host.
-
-Copy `.env.example` to `.env.local`. The only value you need to paste for the personal endpoints is the API key.
-
-## Local dev
 ```bash
 npm i
 npm run dev
 ```
-With `COMFY_MOCK=1` in `.env.local`, uploads return sample outputs (relight tint, lanczos upscale, a sliced sprite sheet, a garment composite, an elliptical cut-out). With a real key and `COMFY_MOCK` unset, each app submits to its deployment in `workflows/deployments.json`.
 
 ```bash
 npm run lint
@@ -59,24 +57,22 @@ npm run build
 ```
 
 ## Layout
-```
-workflows/deployments.json          per-app deployment id, release id, endpoint URL, env var name
-workflows/<app>/workflow_api.json   API-format graph submitted to that deployment
-workflows/<app>/README.md           node map
-workflows/apps.config.json          app -> workflow file, node inputs, prompt templates
-src/app/api/run/[app]               validate, resize, upload assets, submit job
-src/app/api/jobs/[id]               poll job status on the deployment encoded in the id
-src/app/api/outputs/[assetId]       proxy output bytes after checking the HMAC `sig`
-src/                                 Next.js App Router UI
-```
 
-Sprite Generator requires a character image and always asks Nano Banana 2 for a 4×2 sheet at 16:9 / 2K. White and lilac backgrounds, and WebP export, for Background Removal are composited in the browser. The cut-out from the deployment is an RGBA PNG.
+```
+workflows/deployments.json          deployment id, release id, endpoint, env var
+workflows/apps.config.json          app → workflow, inputs, prompt templates
+workflows/<app>/workflow_api.json   graph submitted to that deployment
+workflows/<app>/README.md           node map
+src/app/api/run/[app]               validate, resize, upload, submit
+src/app/api/jobs/[id]               poll the deployment named in the id
+src/app/api/outputs/[assetId]       stream the output after checking sig
+src/                                Next.js App Router UI
+```
 
 ## Deploy
-Vercel project `comfy-api-apps`, git-connected to `jpcosta-comfy/comfy-api-apps` (`main` -> production).
 
-On Vercel, set `COMFY_API_KEY` or `COMFY_CLOUD_API_KEY` (Production + Preview), then redeploy. Leave the `COMFY_BASE_URL_*` variables unset unless a Preview or Production environment should call a different deployment than `workflows/deployments.json`. Do not set `COMFY_MOCK` in production if you want live runs. Set `OUTPUT_SIGNING_SECRET` if download links should stay valid when the API key rotates.
+`main` on `jpcosta-comfy/comfy-api-apps` deploys to the Vercel project `comfy-api-apps`.
 
-The browser resizes uploads to 2048 px before POST so they stay under the Vercel request-body limit; the server still checks type, size (15 MB), EXIF orientation, and the per-app `maxSide`.
+Set `COMFY_API_KEY` or `COMFY_CLOUD_API_KEY` for Production and Preview, then redeploy. Leave the `COMFY_BASE_URL_*` variables unset unless that environment should call a different host than `workflows/deployments.json`. Leave `COMFY_MOCK` unset for live runs. Set `OUTPUT_SIGNING_SECRET` when download links should stay valid after the API key changes.
 
-Deployments ship with minimum instances at 0. Start one with `comfy deploy start` before expecting a live image (at most 3 active). Crayon is not part of this app.
+The browser resizes uploads to 2048 px before POST so they stay under the Vercel body limit. The server still checks type, the 15 MB cap, EXIF orientation, and each app's `maxSide`.
