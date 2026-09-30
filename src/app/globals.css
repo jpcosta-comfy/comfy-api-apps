@@ -347,14 +347,16 @@ button { cursor: pointer; }
 .seg { position: relative; display: flex; height: 40px; background: var(--well); border: 1px solid var(--border); border-radius: 12px; padding: 3px; gap: 0; }
 .seg button {
   position: relative;
-  flex: 1;
+  flex: 1 1 auto;
   border: 0;
   background: transparent;
   border-radius: 8px;
   color: var(--mute);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   font-size: 14px;
+  padding: 0 12px;
+  white-space: nowrap;
 }
 .seg button.on { background: var(--yel); color: var(--ink); box-shadow: none; }
 .select, .text {
