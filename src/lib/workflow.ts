@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { AppConfig, ParamSpec } from "@/lib/config";
 import { AppError } from "@/lib/http";
-import { buildPrompt, type RunParams } from "@/lib/prompts";
+import { buildPrompt, resolutionValue, type RunParams } from "@/lib/prompts";
 
 export type WorkflowNode = {
   class_type: string;
@@ -31,6 +31,8 @@ const FILE_NAMES: Record<string, string> = {
   image: "input.png",
   person: "person.png",
   garment: "garment.png",
+  hand: "hand.png",
+  product: "product.png",
 };
 
 export function filePathFor(role: string): string {
@@ -74,6 +76,8 @@ export function applyParams(workflow: Workflow, app: AppConfig, params: RunParam
       node.inputs[spec.input] = buildPrompt(app, params);
     } else if (name === "seed") {
       node.inputs[spec.input] = params.seed ?? 0;
+    } else if (name === "resolution") {
+      node.inputs[spec.input] = resolutionValue(params.resolution, spec.default ?? "2K");
     } else if (spec.map) {
       node.inputs[spec.input] = mappedValue(spec, params);
     } else if (spec.default !== undefined) {

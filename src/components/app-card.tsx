@@ -121,6 +121,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
     for (const image of app.images) {
       if (!image.optional && !uploads[image.key]) {
         if (app.kind === "tryon") return "Upload a person and a garment.";
+        if (app.kind === "swap") return "Upload a hand photo and a product.";
         if (app.kind === "sprite") return "Upload a character image.";
         return "Upload an image first.";
       }
@@ -142,6 +143,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
       return `${frames} frames · ${gridLabel} · ${style === "3d" ? "3D" : style}`;
     }
     if (app.kind === "tryon") return `${controlValue(next, "fit")} fit`;
+    if (app.kind === "swap") return controlValue(next, "resolution") || "2K";
     return `${controlValue(next, "format").toUpperCase()} · ${controlValue(next, "background")}`;
   }
 
@@ -280,12 +282,14 @@ export function AppCard({ app }: { app: CatalogApp }) {
           : undefined
       : undefined;
   const checker = app.kind === "cutout" && active && background === "transparent";
-  const beforeUrl = active?.before.image || active?.before.person || "";
+  const primaryKey = app.images[0]?.key;
+  const primaryUpload = primaryKey ? uploads[primaryKey] : undefined;
+  const beforeUrl = (primaryKey && active?.before[primaryKey]) || "";
   const showCompare = view === 1 && app.views[1] === "Compare" && active && beforeUrl;
   const showSprite = view === 1 && app.kind === "sprite" && active;
   const grid = app.grids?.[active?.frames || Object.keys(app.grids ?? {})[0] || "8"] ?? { cols: 4, rows: 2 };
 
-  const status = statusLine(phase, progress, error, uploads, active);
+  const status = statusLine(phase, progress, error, primaryUpload, active);
   const bar = phase === "idle" ? 0 : phase === "done" ? 1 : phase === "error" ? 0 : progress || (phase === "queued" ? 0.08 : 0.2);
   const pillClass = phase === "running" || phase === "queued" ? "run" : phase === "done" ? "done" : "";
   const pillText =
@@ -305,6 +309,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
         </span>
         <div className="titles">
           <div className="name">{app.name}</div>
+          {app.tagline ? <div className="tagline">{app.tagline}</div> : null}
         </div>
         <span className="chip endpoint" title={`POST ${app.endpoint}`}>
           <span className="m">POST</span>
@@ -439,9 +444,9 @@ export function AppCard({ app }: { app: CatalogApp }) {
                 <img className="shot" src={active.url} alt={`${app.name} result`} />
               </div>
             ) : null}
-            {!active && (uploads.image || uploads.person) ? (
+            {!active && primaryUpload ? (
               <div className="shot-wrap">
-                <img className="shot" src={(uploads.image || uploads.person)?.url} alt="Uploaded image" />
+                <img className="shot" src={primaryUpload.url} alt="Uploaded image" />
               </div>
             ) : null}
             {showCompare ? (
@@ -507,15 +512,14 @@ function statusLine(
   phase: Phase,
   progress: number,
   error: string | null,
-  uploads: Record<string, UploadState | undefined>,
+  primary: UploadState | undefined,
   active: HistoryItem | null,
 ): string {
   if (error && phase === "error") return error;
   if (phase === "queued") return "Queued · the deployment may be cold-starting";
   if (phase === "running") return `Running · ${Math.round(progress * 100)}%`;
   if (phase === "done" && active) return `Done · ${active.width} × ${active.height}`;
-  const file = uploads.image || uploads.person;
-  if (file) return `Ready · ${file.name}`;
+  if (primary) return `Ready · ${primary.name}`;
   return "Waiting for input";
 }
 

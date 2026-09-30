@@ -2,7 +2,7 @@ import { randomInt } from "node:crypto";
 import { FIT_VALUES, type FitValue } from "@/lib/choices";
 import type { AppConfig } from "@/lib/config";
 import { AppError } from "@/lib/http";
-import type { RunParams } from "@/lib/prompts";
+import { resolutionValue, type RunParams } from "@/lib/prompts";
 
 function text(form: FormData, key: string): string {
   const value = form.get(key);
@@ -67,6 +67,10 @@ export function parseRunParams(app: AppConfig, form: FormData, hasImage: boolean
     const fit = text(form, "fit").toLowerCase();
     if (!FIT_VALUES.includes(fit as FitValue)) bad("Choose a fit.");
     params.fit = fit;
+  }
+
+  if (app.params.resolution) {
+    params.resolution = resolutionValue(text(form, "resolution"), app.params.resolution.default ?? "2K");
   }
 
   if (app.params.seed) {

@@ -24,6 +24,16 @@ export const DIRECTION_OPTIONS = [
   { value: "right", label: "Right" },
 ] as const;
 
+export const RESOLUTION_VALUES = ["1K", "2K", "4K"] as const;
+
+export const RESOLUTION_OPTIONS = [
+  { value: "1K", label: "1K" },
+  { value: "2K", label: "2K" },
+  { value: "4K", label: "4K" },
+] as const;
+
+export type ResolutionValue = (typeof RESOLUTION_VALUES)[number];
+
 export type FitValue = (typeof FIT_VALUES)[number];
 export type BackgroundValue = (typeof BACKGROUND_OPTIONS)[number]["value"];
 export type FormatValue = (typeof FORMAT_OPTIONS)[number]["value"];

@@ -34,6 +34,7 @@ const EXPECTED_ENDPOINTS: Record<string, string> = {
   "sprite-generator": "https://dep-6e5a0ab1-8131-4ee8-acb7-ae1840160e13.run.comfy.app",
   "background-removal": "https://dep-e45cb437-0991-4689-9f7c-77d5748e3adc.run.comfy.app",
   "virtual-try-on": "https://dep-d99a045a-86e9-4251-bbae-0a88940f78d1.run.comfy.app",
+  "hand-product-swap": "https://dep-9a807afc-d80c-43de-adc4-d0eee9a73655.run.comfy.app",
 };
 
 const deploymentEnvNames = Object.keys(EXPECTED_ENDPOINTS).map(deploymentEnvName);
@@ -43,11 +44,21 @@ for (const name of deploymentEnvNames) delete process.env[name];
 delete process.env.COMFY_CLOUD_BASE_URL;
 
 assert.deepEqual([...listAppIds()].sort(), Object.keys(EXPECTED_ENDPOINTS).sort());
-assert.deepEqual(listVisibleAppIds(), ["sprite-generator", "virtual-try-on", "background-removal"]);
+assert.deepEqual(listVisibleAppIds(), ["sprite-generator", "virtual-try-on", "hand-product-swap", "background-removal"]);
 assert.deepEqual(
   buildCatalog().map((app) => app.id),
-  ["sprite-generator", "virtual-try-on", "background-removal"],
+  ["sprite-generator", "virtual-try-on", "hand-product-swap", "background-removal"],
 );
+const swapCatalog = buildCatalog().find((app) => app.id === "hand-product-swap");
+assert.equal(swapCatalog?.name, "Hand product swap");
+assert.equal(swapCatalog?.tagline, "Same hand & grip, new product");
+assert.equal(swapCatalog?.kind, "swap");
+assert.deepEqual(
+  swapCatalog?.images.map((image) => image.key),
+  ["hand", "product"],
+);
+assert.equal(swapCatalog?.hasSeed, true);
+assert.equal(swapCatalog?.controls.some((control) => control.key === "resolution"), true);
 assert.equal(getApp("product-relight")?.enabled, false);
 assert.equal(getApp("image-upscaler")?.enabled, false);
 assert.equal(getApp("sprite-generator")?.enabled, true);
@@ -96,6 +107,7 @@ const relight = mustApp("product-relight");
 const upscale = mustApp("image-upscaler");
 const sprite = mustApp("sprite-generator");
 const tryon = mustApp("virtual-try-on");
+const swap = mustApp("hand-product-swap");
 const cutout = mustApp("background-removal");
 
 const words = relight.intensityWords!;
@@ -190,6 +202,42 @@ assert.equal(vto.workflow["3"].inputs.seed, 9);
 assert.equal((vto.workflow["1"].inputs.image as { info: { file_path: string } }).info.file_path, "person.png");
 assert.equal((vto.workflow["2"].inputs.image as { info: { file_path: string } }).info.file_path, "garment.png");
 assert.ok(vto.extra_data);
+
+const swapPrompt =
+  "Swap the product the subject is holding in image 1 with the product in image 2. Keep the same hand, grip, pose, camera angle, and lighting. Only replace the held object with product Y from image 2.";
+assert.equal(buildPrompt(swap, { hasImage: true }), swapPrompt);
+const swapped = buildJobBody(
+  swap,
+  {
+    hand: { id: "ffffffff-ffff-4fff-8fff-ffffffffffff", filePath: "hand.png" },
+    product: { id: "99999999-9999-4999-8999-999999999999", filePath: "product.png" },
+  },
+  { resolution: "2K", seed: 11, hasImage: false },
+  secret,
+);
+assert.equal(swapped.workflow["17"].class_type, "GeminiImage2Node");
+assert.equal(swapped.workflow["17"].inputs.prompt, swapPrompt);
+assert.equal(swapped.workflow["17"].inputs.seed, 11);
+assert.equal(swapped.workflow["17"].inputs.resolution, "2K");
+assert.equal(swapped.workflow["17"].inputs.model, "gemini-3-pro-image-preview");
+assert.equal(swapped.workflow["10"].class_type, "LoadImage");
+assert.equal(swapped.workflow["11"].class_type, "LoadImage");
+assert.equal(swapped.workflow["15"].class_type, "SaveImage");
+assert.equal((swapped.workflow["10"].inputs.image as { info: { file_path: string } }).info.file_path, "hand.png");
+assert.equal((swapped.workflow["11"].inputs.image as { info: { file_path: string } }).info.file_path, "product.png");
+assert.equal(swapped.extra_data?.api_key_comfy_org, secret);
+assert.equal(swap.partnerNodes, true);
+assert.equal(swap.enabled, true);
+assert.throws(
+  () =>
+    buildJobBody(
+      swap,
+      { hand: { id: "ffffffff-ffff-4fff-8fff-ffffffffffff", filePath: "hand.png" } },
+      { resolution: "2K", seed: 11, hasImage: false },
+      secret,
+    ),
+  /required image/i,
+);
 
 const bg = buildJobBody(
   cutout,
@@ -296,6 +344,10 @@ assert.equal(sheetMeta.height, 860);
 const vtoJob = await saveMockJob(tryon, "virtual-try-on", { fit: "regular" }, { person: sample, garment });
 const vtoPng = await renderMockOutput(vtoJob.outputId, undefined);
 assert.ok(vtoPng.byteLength > 100);
+
+const swapJob = await saveMockJob(swap, "hand-product-swap", { resolution: "2K", seed: 3 }, { hand: sample, product: garment });
+const swapPng = await renderMockOutput(swapJob.outputId, undefined);
+assert.ok(swapPng.byteLength > 100);
 
 const cutJob = await saveMockJob(cutout, "background-removal", {}, { image: sample });
 const cutPng = await renderMockOutput(cutJob.outputId, undefined);

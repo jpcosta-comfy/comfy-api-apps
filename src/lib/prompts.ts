@@ -1,5 +1,5 @@
 import type { AppConfig } from "@/lib/config";
-import { FIT_VALUES, type FitValue } from "@/lib/choices";
+import { FIT_VALUES, RESOLUTION_VALUES, type FitValue, type ResolutionValue } from "@/lib/choices";
 import { AppError } from "@/lib/http";
 
 export type RunParams = {
@@ -12,6 +12,7 @@ export type RunParams = {
   frames?: string;
   description?: string;
   fit?: string;
+  resolution?: string;
   seed?: number;
   hasImage?: boolean;
 };
@@ -69,5 +70,15 @@ export function buildPrompt(app: AppConfig, params: RunParams): string {
     return template.replaceAll("{fit}", fit);
   }
 
+  if (app.promptTemplate && !app.promptTemplate.includes("{")) {
+    return app.promptTemplate;
+  }
+
   return bad("This app has no prompt.");
+}
+
+export function resolutionValue(raw: string | undefined, fallback: string): ResolutionValue {
+  const value = raw || fallback;
+  if (!RESOLUTION_VALUES.includes(value as ResolutionValue)) bad("Choose a resolution of 1K, 2K, or 4K.");
+  return value as ResolutionValue;
 }

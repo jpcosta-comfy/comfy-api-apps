@@ -89,11 +89,12 @@ export type CatalogApp = {
   runLabel: string;
   endpoint: string;
   views: [string, string];
-  kind: "relight" | "upscale" | "sprite" | "tryon" | "cutout";
+  kind: "relight" | "upscale" | "sprite" | "tryon" | "cutout" | "swap";
   images: CatalogImage[];
   controls: ClientControl[];
   hasSeed: boolean;
   empty: string;
+  tagline?: string;
   grids?: Record<string, SpriteGrid>;
 };
 

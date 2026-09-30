@@ -251,6 +251,8 @@ export async function renderMockOutput(outputId: string, grids: Record<string, s
     png = await renderSprite(image, params, grid);
   } else if (meta.app === "virtual-try-on") {
     png = await renderTryOn(await readRole(meta.id, "person"), await readRole(meta.id, "garment"));
+  } else if (meta.app === "hand-product-swap") {
+    png = await renderTryOn(await readRole(meta.id, "hand"), await readRole(meta.id, "product"));
   } else if (meta.app === "background-removal") {
     png = await renderCutout(await readRole(meta.id, "image"));
   } else {

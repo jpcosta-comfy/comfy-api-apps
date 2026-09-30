@@ -3,13 +3,14 @@ import {
   DIRECTION_OPTIONS,
   FIT_OPTIONS,
   FORMAT_OPTIONS,
+  RESOLUTION_OPTIONS,
 } from "@/lib/choices";
 import { getApp, listVisibleAppIds, type AppConfig } from "@/lib/config";
 import type { CatalogApp, ClientControl, SpriteGrid } from "@/lib/types";
 
 const CHROME: Record<
   string,
-  Pick<CatalogApp, "name" | "icon" | "runLabel" | "views" | "kind" | "empty"> & {
+  Pick<CatalogApp, "name" | "icon" | "runLabel" | "views" | "kind" | "empty" | "tagline"> & {
     images: { key: string; label: string }[];
   }
 > = {
@@ -50,6 +51,19 @@ const CHROME: Record<
     images: [
       { key: "person", label: "Person" },
       { key: "garment", label: "Garment" },
+    ],
+  },
+  "hand-product-swap": {
+    icon: "swap",
+    name: "Hand product swap",
+    tagline: "Same hand & grip, new product",
+    runLabel: "Swap product",
+    views: ["Result", "Compare"],
+    kind: "swap",
+    empty: "Upload a hand photo and a product",
+    images: [
+      { key: "hand", label: "Hand" },
+      { key: "product", label: "Product" },
     ],
   },
   "background-removal": {
@@ -152,6 +166,17 @@ function controlsFor(id: string, app: AppConfig): ClientControl[] {
         label: "Fit",
         options: FIT_OPTIONS.map((option) => ({ ...option })),
         default: "regular",
+      },
+    ];
+  }
+  if (id === "hand-product-swap" && app.params.resolution) {
+    return [
+      {
+        type: "seg",
+        key: "resolution",
+        label: "Resolution",
+        options: RESOLUTION_OPTIONS.map((option) => ({ ...option })),
+        default: app.params.resolution.default ?? "2K",
       },
     ];
   }

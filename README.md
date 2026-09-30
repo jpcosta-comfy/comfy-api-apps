@@ -1,6 +1,6 @@
 # Comfy API Apps
 
-Sprite sheets, virtual try-on, and background removal, each running a real ComfyUI workflow on its own personal Comfy API deployment. The API key stays on the server.
+Sprite sheets, virtual try-on, hand product swap, and background removal, each running a real ComfyUI workflow on its own personal Comfy API deployment. The API key stays on the server.
 
 Live: [comfy-api-apps.vercel.app](https://comfy-api-apps.vercel.app/)
 
@@ -10,6 +10,7 @@ Live: [comfy-api-apps.vercel.app](https://comfy-api-apps.vercel.app/)
 |---|---|---|---|
 | Sprite sheet generator | Upload a character. Choose style (pixel, toon, 3D), motion (idle, walk, jump), and an optional animation note. | Nano Banana 2. One 4×2 sheet at 16:9 / 2K. The browser slices it into the preview. | [sprite-generator](https://dep-6e5a0ab1-8131-4ee8-acb7-ae1840160e13.run.comfy.app) |
 | Virtual try-on | Upload a person and a garment. Choose slim, regular, or relaxed. | FLUX Virtual Try-On | [virtual-try-on](https://dep-d99a045a-86e9-4251-bbae-0a88940f78d1.run.comfy.app) |
+| Hand product swap | Upload a hand photo and a product. Same hand and grip, new product. Resolution is 1K, 2K, or 4K. | Nano Banana Pro (Gemini) | [hand-product-swap](https://dep-9a807afc-d80c-43de-adc4-d0eee9a73655.run.comfy.app) |
 | Background removal | Upload a photo. Choose transparent, white, or lilac, then PNG or WebP. | BiRefNet. White, lilac, and WebP are composited in the browser. | [background-removal](https://dep-e45cb437-0991-4689-9f7c-77d5748e3adc.run.comfy.app) |
 
 The hosts above are the defaults in `workflows/deployments.json`. Workers are `--min 0 --max 1`, and only 3 deployments can be active at once, so a host may be stopped or still cold-starting.
@@ -19,7 +20,7 @@ The hosts above are the defaults in `workflows/deployments.json`. Workers are `-
 1. The browser posts the image to `POST /api/run/[app]`. The server accepts png, jpg, or webp up to 15 MB, applies EXIF rotation, and resizes to that app's `maxSide` in `workflows/apps.config.json`.
 2. It uploads the PNG to that app's deployment with `POST /api/v2/assets`. The multipart fields go in this order: `content_type` (`image/png`), `file_path`, `tags` (`["input"]` as a JSON string), then `file`. Putting `file` first returns HTTP 422 `invalid_body`.
 3. `workflow_api.json` receives the asset id on each LoadImage, plus the prompt and seed from the controls.
-4. `POST /api/v2/jobs` on the same host, with an `Idempotency-Key`. Sprite sheet generator and Virtual try-on also send `extra_data.api_key_comfy_org` using the server key. Partner jobs use credits.
+4. `POST /api/v2/jobs` on the same host, with an `Idempotency-Key`. Sprite sheet generator, Virtual try-on, and Hand product swap also send `extra_data.api_key_comfy_org` using the server key. Partner jobs use credits.
 5. The browser polls `GET /api/jobs/{app}~{jobId}` for up to 8 minutes. The app slug picks the deployment.
 6. Downloads go through `GET /api/outputs/{app}~{assetId}?sig=...`. The signature is checked, then the server loads a short-lived URL (about 6 hours) and streams the bytes.
 
@@ -37,6 +38,7 @@ Server only. Locally that is `.env.local`. On Vercel, project `comfy-api-apps`, 
 | `COMFY_CLOUD_API_KEY` | alias | Read when `COMFY_API_KEY` is unset. If both are set, `COMFY_API_KEY` wins. This is the key sent for partner nodes. |
 | `COMFY_BASE_URL_SPRITE_GENERATOR` | no | Override for that app. Default is in `workflows/deployments.json`. |
 | `COMFY_BASE_URL_VIRTUAL_TRY_ON` | no | Same. |
+| `COMFY_BASE_URL_HAND_PRODUCT_SWAP` | no | Same. Default host is `https://dep-9a807afc-d80c-43de-adc4-d0eee9a73655.run.comfy.app`. |
 | `COMFY_BASE_URL_BACKGROUND_REMOVAL` | no | Same. |
 | `COMFY_MOCK` | no | `1` returns sample images and skips the deployments. Leave unset for live runs. |
 | `OUTPUT_SIGNING_SECRET` | no | HMAC for download links. If unset, SHA-256 of the API key. |

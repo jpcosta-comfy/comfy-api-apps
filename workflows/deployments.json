@@ -15,7 +15,8 @@
       "deploymentId": "dep-226ed4ac-b5eb-4d8d-bb9c-51907d71718a",
       "endpointUrl": "https://dep-226ed4ac-b5eb-4d8d-bb9c-51907d71718a.run.comfy.app",
       "releaseId": "a7210d53-50c1-43d3-a43a-583b0f6d02ac",
-      "env": "COMFY_BASE_URL_IMAGE_UPSCALER"
+      "env": "COMFY_BASE_URL_IMAGE_UPSCALER",
+      "note": "The Comfy release for this deployment was deleted. Left as the last known host. Do not replace the URL."
     },
     "sprite-generator": {
       "deploymentId": "dep-6e5a0ab1-8131-4ee8-acb7-ae1840160e13",
@@ -34,6 +35,12 @@
       "endpointUrl": "https://dep-d99a045a-86e9-4251-bbae-0a88940f78d1.run.comfy.app",
       "releaseId": "26b4e39d-c251-44a8-bd84-51f84d985dcb",
       "env": "COMFY_BASE_URL_VIRTUAL_TRY_ON"
+    },
+    "hand-product-swap": {
+      "deploymentId": "dep-9a807afc-d80c-43de-adc4-d0eee9a73655",
+      "endpointUrl": "https://dep-9a807afc-d80c-43de-adc4-d0eee9a73655.run.comfy.app",
+      "releaseId": "49f65016-0377-426a-ae31-ba65b9d999aa",
+      "env": "COMFY_BASE_URL_HAND_PRODUCT_SWAP"
     }
   }
 }

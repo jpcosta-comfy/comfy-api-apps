@@ -8,6 +8,7 @@ export type DeploymentRecord = {
   endpointUrl: string;
   releaseId: string;
   env: string;
+  note?: string;
 };
 
 export type DeploymentsFile = {

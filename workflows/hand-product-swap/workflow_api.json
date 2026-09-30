@@ -1,0 +1,102 @@
+{
+  "10": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "hand.png"
+    },
+    "_meta": {
+      "title": "Hand / subject holding anything"
+    }
+  },
+  "11": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "product.png"
+    },
+    "_meta": {
+      "title": "Product Y"
+    }
+  },
+  "12": {
+    "class_type": "GetImageSize",
+    "inputs": {
+      "image": [
+        "10",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Subject size"
+    }
+  },
+  "13": {
+    "class_type": "ResizeAndPadImage",
+    "inputs": {
+      "image": [
+        "11",
+        0
+      ],
+      "target_width": [
+        "12",
+        0
+      ],
+      "target_height": [
+        "12",
+        1
+      ],
+      "interpolation": "area",
+      "padding_color": "white"
+    },
+    "_meta": {
+      "title": "Pad product to subject size"
+    }
+  },
+  "19": {
+    "class_type": "BatchImagesNode",
+    "inputs": {
+      "images.image0": [
+        "10",
+        0
+      ],
+      "images.image1": [
+        "13",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Batch subject + product"
+    }
+  },
+  "17": {
+    "class_type": "GeminiImage2Node",
+    "inputs": {
+      "images": [
+        "19",
+        0
+      ],
+      "prompt": "Swap the product the subject is holding in image 1 with the product in image 2. Keep the same hand, grip, pose, camera angle, and lighting. Only replace the held object with product Y from image 2.",
+      "model": "gemini-3-pro-image-preview",
+      "seed": 42,
+      "aspect_ratio": "auto",
+      "resolution": "2K",
+      "response_modalities": "IMAGE+TEXT",
+      "system_prompt": "You are an expert image-generation engine. You must ALWAYS produce an image.\nInterpret all user input\u2014regardless of format, intent, or abstraction\u2014as literal visual directives for image composition.\nIf a prompt is conversational or lacks specific visual details, you must creatively invent a concrete visual scenario that depicts the concept.\nPrioritize generating the visual representation above any text, formatting, or conversational requests."
+    },
+    "_meta": {
+      "title": "Gemini product swap"
+    }
+  },
+  "15": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "17",
+        0
+      ],
+      "filename_prefix": "comfy-api-apps/hand_product_swap"
+    },
+    "_meta": {
+      "title": "Output"
+    }
+  }
+}

@@ -72,6 +72,25 @@
       },
       "output": { "node": "4" }
     },
+    "hand-product-swap": {
+      "title": "Hand Product Swap",
+      "enabled": true,
+      "workflow": "workflows/hand-product-swap/workflow_api.json",
+      "cloudWorkflowId": "7f6a1615-e176-48cd-a9de-1d2c0679f171",
+      "cloudWorkflowName": "comfy-api-apps - Hand Product Swap",
+      "partnerNodes": true,
+      "imageInputs": {
+        "hand": { "node": "10", "input": "image", "maxSide": 1536 },
+        "product": { "node": "11", "input": "image", "maxSide": 1536 }
+      },
+      "params": {
+        "prompt": { "node": "17", "input": "prompt" },
+        "seed": { "node": "17", "input": "seed" },
+        "resolution": { "node": "17", "input": "resolution", "default": "2K" }
+      },
+      "promptTemplate": "Swap the product the subject is holding in image 1 with the product in image 2. Keep the same hand, grip, pose, camera angle, and lighting. Only replace the held object with product Y from image 2.",
+      "output": { "node": "15" }
+    },
     "background-removal": {
       "title": "Background Removal",
       "enabled": true,
