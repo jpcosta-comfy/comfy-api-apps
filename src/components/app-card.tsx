@@ -37,20 +37,6 @@ const sleep = (ms: number, signal: AbortSignal) =>
     });
   });
 
-function ArrowIcon({ dir }: { dir: "up" | "down" | "right" }) {
-  const d =
-    dir === "up"
-      ? "M12 1.5 21 12h-5.2v10.5H8.2V12H3Z"
-      : dir === "down"
-        ? "M12 22.5 3 12h5.2V1.5h7.6V12H21Z"
-        : "M22.5 12 12 3v5.2H1.5v7.6H12V21Z";
-  return (
-    <svg className="arrow" viewBox="0 0 24 24" aria-hidden="true">
-      <path d={d} fill="currentColor" />
-    </svg>
-  );
-}
-
 function controlValue(values: Record<string, string>, key: string): string {
   return values[key] ?? "";
 }
@@ -415,8 +401,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
                 "↻ Run again"
               ) : (
                 <>
-                  {app.runLabel}
-                  <ArrowIcon dir="right" />
+                  {app.runLabel} <span className="arrow" aria-hidden="true">→</span>
                 </>
               )}
             </span>
@@ -438,7 +423,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
               ↻ Retry
             </button>
             <button className="btn dark" type="button" disabled={!active} onClick={() => void onDownload()}>
-              <ArrowIcon dir="down" />
+              <span className="arrow" aria-hidden="true">↓</span>
               Download
             </button>
           </div>
@@ -602,7 +587,7 @@ function UploadField({
           <div className="up-empty">
             <span className="hint">Drop an image or</span>
             <span className="btn dark">
-              <ArrowIcon dir="up" />
+              <span className="arrow" aria-hidden="true">↑</span>
               Upload image
             </span>
           </div>
