@@ -85,7 +85,6 @@ export type SpriteGrid = {
 export type CatalogApp = {
   id: string;
   name: string;
-  meta: string;
   icon: string;
   runLabel: string;
   endpoint: string;

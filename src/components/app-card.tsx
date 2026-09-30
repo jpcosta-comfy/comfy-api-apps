@@ -310,7 +310,6 @@ export function AppCard({ app }: { app: CatalogApp }) {
         </span>
         <div className="titles">
           <div className="name">{app.name}</div>
-          <div className="meta">{app.meta}</div>
         </div>
         <span className="chip endpoint" title={`POST ${app.endpoint}`}>
           <span className="m">POST</span>

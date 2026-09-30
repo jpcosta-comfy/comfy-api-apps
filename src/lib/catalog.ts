@@ -9,14 +9,13 @@ import type { CatalogApp, ClientControl, SpriteGrid } from "@/lib/types";
 
 const CHROME: Record<
   string,
-  Pick<CatalogApp, "name" | "meta" | "icon" | "runLabel" | "views" | "kind" | "empty"> & {
+  Pick<CatalogApp, "name" | "icon" | "runLabel" | "views" | "kind" | "empty"> & {
     images: { key: string; label: string }[];
   }
 > = {
   "product-relight": {
     icon: "sun",
     name: "Product relight",
-    meta: "packshot → new lighting",
     runLabel: "Relight",
     views: ["Result", "Compare"],
     kind: "relight",
@@ -26,7 +25,6 @@ const CHROME: Record<
   "image-upscaler": {
     icon: "upscale",
     name: "Image upscaler",
-    meta: "low-res → sharp",
     runLabel: "Upscale",
     views: ["Result", "Compare"],
     kind: "upscale",
@@ -36,7 +34,6 @@ const CHROME: Record<
   "sprite-generator": {
     icon: "sheet",
     name: "Sprite sheet generator",
-    meta: "character → animation frames",
     runLabel: "Generate sheet",
     views: ["Sheet", "Preview"],
     kind: "sprite",
@@ -46,7 +43,6 @@ const CHROME: Record<
   "virtual-try-on": {
     icon: "hanger",
     name: "Virtual try-on",
-    meta: "person + garment → photo",
     runLabel: "Try it on",
     views: ["Result", "Compare"],
     kind: "tryon",
@@ -59,7 +55,6 @@ const CHROME: Record<
   "background-removal": {
     icon: "cutout",
     name: "Background removal",
-    meta: "photo → cut-out",
     runLabel: "Remove background",
     views: ["Result", "Compare"],
     kind: "cutout",
