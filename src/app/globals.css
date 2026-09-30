@@ -175,7 +175,7 @@ button { cursor: pointer; }
   align-items: center;
   gap: 12px;
   min-height: 44px;
-  margin-bottom: 6px;
+  margin-bottom: 22px;
   flex: none;
 }
 .icon {
