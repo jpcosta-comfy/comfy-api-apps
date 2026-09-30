@@ -180,22 +180,6 @@ h1 {
   flex-direction: column;
 }
 .stage[hidden] { display: none; }
-.arrow {
-  position: absolute;
-  top: 46%;
-  z-index: 3;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 1px solid rgba(22, 21, 29, 0.08);
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 8px 20px -12px rgba(33, 25, 39, 0.35);
-  font-size: 26px;
-}
-.arrow.prev { left: -18px; }
-.arrow.next { right: -18px; }
-.arrow:hover { background: #fff; }
-
 .card {
   background: #fff;
   border-radius: 20px;
@@ -657,7 +641,6 @@ textarea.text { height: 44px; padding: 8px 12px; resize: none; }
   .lede { font-size: 15px; }
   .stage { height: auto; display: block; }
   .card { height: auto; display: block; }
-  .arrow { display: none; }
   .body { display: grid; grid-template-columns: 1fr; }
   .panel { overflow: visible; }
   .preview { min-height: 280px; }

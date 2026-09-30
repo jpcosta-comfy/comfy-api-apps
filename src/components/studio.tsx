@@ -56,17 +56,11 @@ export function Studio({
         <p className="warn">Set COMFY_API_KEY or COMFY_CLOUD_API_KEY on the server to run live jobs, or COMFY_MOCK=1 for sample output.</p>
       ) : null}
       <div className="stage-wrap">
-        <button className="arrow prev" type="button" aria-label="Previous app" onClick={() => setIndex((current) => (current - 1 + count) % count)}>
-          ‹
-        </button>
         {apps.map((item, itemIndex) => (
           <div key={item.id} className="stage" hidden={itemIndex !== index}>
             <AppCard app={item} />
           </div>
         ))}
-        <button className="arrow next" type="button" aria-label="Next app" onClick={() => setIndex((current) => (current + 1) % count)}>
-          ›
-        </button>
       </div>
       <div className="dots">
         <p className="foot-note">The API key stays on the server. Arrow keys move between apps.</p>
