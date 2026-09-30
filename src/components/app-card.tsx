@@ -5,6 +5,7 @@ import type { BackgroundValue, FormatValue } from "@/lib/choices";
 import { downloadBlob, exportCutout } from "@/lib/composite";
 import { randomSeed, shrinkForUpload } from "@/lib/prepare-image";
 import { LILAC, TERMINAL_STATUSES, type CatalogApp, type JobView, type RunResponse } from "@/lib/types";
+import { AppIcon } from "@/components/app-icon";
 
 type UploadState = {
   file: File;
@@ -304,8 +305,8 @@ export function AppCard({ app }: { app: CatalogApp }) {
   return (
     <article className="card">
       <header className="hd">
-        <span className="icon" aria-hidden>
-          {app.icon}
+        <span className={`icon${app.icon === "hanger" ? " hanger" : ""}`} aria-hidden>
+          <AppIcon name={app.icon} />
         </span>
         <div className="titles">
           <div className="name">{app.name}</div>

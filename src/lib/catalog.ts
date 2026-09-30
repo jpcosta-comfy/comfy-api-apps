@@ -14,7 +14,7 @@ const CHROME: Record<
   }
 > = {
   "product-relight": {
-    icon: "☀",
+    icon: "sun",
     name: "Product relight",
     meta: "packshot → new lighting",
     runLabel: "Relight",
@@ -24,7 +24,7 @@ const CHROME: Record<
     images: [{ key: "image", label: "Input" }],
   },
   "image-upscaler": {
-    icon: "⤢",
+    icon: "upscale",
     name: "Image upscaler",
     meta: "low-res → sharp",
     runLabel: "Upscale",
@@ -34,7 +34,7 @@ const CHROME: Record<
     images: [{ key: "image", label: "Input" }],
   },
   "sprite-generator": {
-    icon: "▦",
+    icon: "sheet",
     name: "Sprite sheet generator",
     meta: "character → animation frames",
     runLabel: "Generate sheet",
@@ -44,7 +44,7 @@ const CHROME: Record<
     images: [{ key: "image", label: "Input" }],
   },
   "virtual-try-on": {
-    icon: "◧",
+    icon: "hanger",
     name: "Virtual try-on",
     meta: "person + garment → photo",
     runLabel: "Try it on",
@@ -57,7 +57,7 @@ const CHROME: Record<
     ],
   },
   "background-removal": {
-    icon: "◌",
+    icon: "cutout",
     name: "Background removal",
     meta: "photo → cut-out",
     runLabel: "Remove background",
