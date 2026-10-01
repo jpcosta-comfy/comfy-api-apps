@@ -26,10 +26,13 @@ export async function GET(request: Request) {
     }
     const kind = sniffImage(buf);
     if (!kind) throw new AppError(502, "scene_download_failed", "That photo was not a PNG, JPG, or WebP image.");
-    return new Response(buf, {
+    // Node Buffer is Uint8Array<ArrayBufferLike>, which is not a fetch BodyInit under this TypeScript version.
+    const body = new Uint8Array(buf.byteLength);
+    body.set(buf);
+    return new Response(body, {
       headers: {
         "Content-Type": contentTypeFor(kind),
-        "Content-Length": String(buf.byteLength),
+        "Content-Length": String(body.byteLength),
         "Cache-Control": "private, max-age=300",
         "X-Content-Type-Options": "nosniff",
       },
