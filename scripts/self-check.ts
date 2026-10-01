@@ -31,6 +31,7 @@ import {
   selectCelebrityHits,
   type SearchHit,
 } from "../src/lib/paparazzi-search";
+import { easeSlide } from "../src/lib/ease-slide";
 import { readSceneChoice, signSceneChoice } from "../src/lib/scene-token";
 import { buildJobBody, redactJobBody } from "../src/lib/workflow";
 
@@ -596,6 +597,22 @@ const cutJob = await saveMockJob(cutout, "background-removal", {}, { image: samp
 const cutPng = await renderMockOutput(cutJob.outputId, undefined);
 const cutMeta = await sharp(cutPng).metadata();
 assert.equal(cutMeta.hasAlpha, true);
+
+assert.equal(easeSlide(0), 0);
+assert.equal(easeSlide(1), 1);
+assert.equal(easeSlide(-0.2), 0);
+assert.equal(easeSlide(1.2), 1);
+let slidePrev = 0;
+for (let i = 1; i <= 400; i++) {
+  const y = easeSlide(i / 400);
+  assert.ok(y + 1e-12 >= slidePrev, `ease.slide went backwards at ${i / 400}`);
+  assert.ok(y <= 1 + 1e-12);
+  slidePrev = y;
+}
+assert.ok(easeSlide(0.2) < 0.08, "launch stays slow");
+assert.ok(Math.abs(easeSlide(0.365) - 0.829763) < 1e-4, "position at the velocity peak");
+assert.ok(easeSlide(0.5) > 0.7, "most of the travel is past the velocity peak");
+assert.ok(easeSlide(0.99) > 0.99, "tail arrives before the end");
 
 console.log("self-check ok");
 }

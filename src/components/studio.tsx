@@ -2,10 +2,12 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppCard } from "@/components/app-card";
+import { easeSlide, NAV_MS } from "@/lib/ease-slide";
 import type { CatalogApp } from "@/lib/types";
 
-const DESKTOP_PEEK = 48;
-const DESKTOP_GAP = 16;
+function mod(value: number, count: number): number {
+  return ((value % count) + count) % count;
+}
 
 export function Studio({
   apps,
@@ -18,38 +20,68 @@ export function Studio({
 }) {
   const count = apps.length;
   const viewportRef = useRef<HTMLDivElement>(null);
+  const reelRef = useRef<HTMLDivElement>(null);
   const stageRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const metricsRef = useRef({ width: 0, peek: 0, gap: 0 });
+  const widthRef = useRef(0);
   const indexRef = useRef(0);
   const posRef = useRef(0);
   const busyRef = useRef(false);
+  const animRef = useRef<{ from: number; to: number; t0: number } | null>(null);
+  const rafRef = useRef(0);
   const [index, setIndex] = useState(0);
   const [trackPos, setTrackPos] = useState(0);
   const [anchor, setAnchor] = useState(0);
-  const [instant, setInstant] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [metrics, setMetrics] = useState({ width: 0, peek: 0, gap: 0 });
+  const [width, setWidth] = useState(0);
 
   const current = apps[index];
-  const cardW = Math.max(0, metrics.width - metrics.peek * 2);
-  const step = cardW + metrics.gap;
+  const cardW = Math.max(0, width);
+  const step = cardW;
 
-  useEffect(() => {
-    if (metrics.width <= 0) return;
-    let second = 0;
-    const first = requestAnimationFrame(() => {
-      second = requestAnimationFrame(() => setInstant(false));
-    });
-    return () => {
-      cancelAnimationFrame(first);
-      cancelAnimationFrame(second);
-    };
-  }, [metrics.width, metrics.peek, metrics.gap]);
+  function paint(pos: number) {
+    const reel = reelRef.current;
+    const size = widthRef.current;
+    if (!reel || size <= 0) return;
+    reel.style.transform = `translate3d(${-pos * size}px, 0, 0)`;
+  }
+
+  function finish(to: number) {
+    const settled = mod(to, count);
+    animRef.current = null;
+    posRef.current = settled;
+    indexRef.current = settled;
+    busyRef.current = false;
+    setIndex(settled);
+    setAnchor(settled);
+    setTrackPos(settled);
+    setBusy(false);
+    if (settled === to) paint(settled);
+  }
+
+  function frame(now: number) {
+    const anim = animRef.current;
+    if (!anim) return;
+    const t = (now - anim.t0) / NAV_MS;
+    if (t >= 1) {
+      finish(anim.to);
+      return;
+    }
+    const pos = anim.from + (anim.to - anim.from) * easeSlide(t);
+    posRef.current = pos;
+    paint(pos);
+    rafRef.current = requestAnimationFrame(frame);
+  }
+
+  useLayoutEffect(() => {
+    if (animRef.current) return;
+    paint(trackPos);
+  }, [trackPos, width]);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
-    if (metrics.peek > 0 || metrics.width <= 0) {
+    const desktop = window.matchMedia("(min-width: 981px)").matches;
+    if (desktop || width <= 0) {
       viewport.style.height = "";
       return;
     }
@@ -63,83 +95,65 @@ export function Studio({
     const observer = new ResizeObserver(apply);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [index, metrics.peek, metrics.width]);
+  }, [index, width]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const node = viewportRef.current;
     if (!node) return;
     const read = () => {
-      const desktop = window.matchMedia("(min-width: 981px)").matches;
-      const next = {
-        width: node.clientWidth,
-        peek: desktop ? DESKTOP_PEEK : 0,
-        gap: desktop ? DESKTOP_GAP : 0,
-      };
-      const prev = metricsRef.current;
-      if (prev.width === next.width && prev.peek === next.peek && prev.gap === next.gap) return;
-      metricsRef.current = next;
-      setMetrics(next);
-      setInstant(true);
+      const next = node.clientWidth;
+      if (widthRef.current === next) return;
+      widthRef.current = next;
+      if (animRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        animRef.current = null;
+        const settled = mod(indexRef.current, count);
+        posRef.current = settled;
+        busyRef.current = false;
+        setBusy(false);
+        setAnchor(settled);
+        setTrackPos(settled);
+      }
+      setWidth(next);
     };
     read();
     const observer = new ResizeObserver(read);
     observer.observe(node);
-    const query = window.matchMedia("(min-width: 981px)");
-    query.addEventListener("change", read);
     return () => {
       observer.disconnect();
-      query.removeEventListener("change", read);
+      cancelAnimationFrame(rafRef.current);
     };
-  }, []);
+  }, [count]);
 
   function goTo(target: number) {
     if (count < 2 || busyRef.current) return;
     const from = indexRef.current;
-    const next = ((target % count) + count) % count;
+    const next = mod(target, count);
     if (next === from) return;
     let delta = next - from;
     if (delta > count / 2) delta -= count;
     if (delta < -count / 2) delta += count;
-    const dest = from + delta;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     indexRef.current = next;
     setIndex(next);
-    if (reduce || step <= 0) {
+    cancelAnimationFrame(rafRef.current);
+    if (reduce || widthRef.current <= 0) {
+      animRef.current = null;
       posRef.current = next;
+      busyRef.current = false;
+      setBusy(false);
       setAnchor(next);
       setTrackPos(next);
-      setInstant(true);
       return;
     }
+    const fromPos = posRef.current;
+    const dest = fromPos + delta;
     busyRef.current = true;
     setBusy(true);
-    setAnchor(from);
-    posRef.current = dest;
+    animRef.current = { from: fromPos, to: dest, t0: performance.now() };
+    setAnchor(fromPos);
     setTrackPos(dest);
-  }
-
-  function onTrackEnd(event: React.TransitionEvent<HTMLDivElement>) {
-    if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
-    const pos = posRef.current;
-    const settled = ((pos % count) + count) % count;
-    if (settled !== pos) {
-      posRef.current = settled;
-      indexRef.current = settled;
-      setInstant(true);
-      setAnchor(settled);
-      setTrackPos(settled);
-      setIndex(settled);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setInstant(false);
-          busyRef.current = false;
-          setBusy(false);
-        });
-      });
-      return;
-    }
-    busyRef.current = false;
-    setBusy(false);
+    rafRef.current = requestAnimationFrame(frame);
   }
 
   const goToRef = useRef<(target: number) => void>(() => {});
@@ -213,13 +227,9 @@ export function Studio({
           </button>
           <div className="track-viewport" ref={viewportRef}>
             <div
-              className={instant ? "reel is-instant" : "reel"}
-              onTransitionEnd={onTrackEnd}
-              style={{
-                gap: metrics.gap,
-                transform: `translate3d(${metrics.peek - trackPos * step}px, 0, 0)`,
-                pointerEvents: busy ? "none" : undefined,
-              }}
+              className="reel"
+              ref={reelRef}
+              style={{ pointerEvents: busy ? "none" : undefined }}
             >
               {apps.map((item, itemIndex) => (
                 <div
@@ -228,7 +238,12 @@ export function Studio({
                   ref={(node) => {
                     stageRefs.current[itemIndex] = node;
                   }}
-                  style={{ width: cardW || "100%", transform: cardShift(itemIndex) }}
+                  style={{
+                    width: cardW || "100%",
+                    flexBasis: cardW || "100%",
+                    maxWidth: cardW || "100%",
+                    transform: cardShift(itemIndex),
+                  }}
                 >
                   <div className="stage-body" inert={itemIndex !== index}>
                     <AppCard app={item} />
@@ -236,24 +251,6 @@ export function Studio({
                 </div>
               ))}
             </div>
-            {metrics.peek > 0 ? (
-              <>
-                <button
-                  type="button"
-                  className="peek-zone prev"
-                  style={{ width: metrics.peek }}
-                  aria-label={`Show ${apps[(index + count - 1) % count]?.name ?? "previous app"}`}
-                  onClick={() => goTo(index - 1)}
-                />
-                <button
-                  type="button"
-                  className="peek-zone next"
-                  style={{ width: metrics.peek }}
-                  aria-label={`Show ${apps[(index + 1) % count]?.name ?? "next app"}`}
-                  onClick={() => goTo(index + 1)}
-                />
-              </>
-            ) : null}
           </div>
           <button className="nav-arrow next" type="button" aria-label="Next app" onClick={() => goTo(index + 1)}>
             ›
