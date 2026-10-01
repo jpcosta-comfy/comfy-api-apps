@@ -1,0 +1,68 @@
+{
+  "11": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "celebrity_scene.png"
+    },
+    "_meta": {
+      "title": "Celebrity / paparazzi scene"
+    }
+  },
+  "12": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "user_face.png"
+    },
+    "_meta": {
+      "title": "User face / selfie"
+    }
+  },
+  "36": {
+    "class_type": "BatchImagesNode",
+    "inputs": {
+      "images.image0": [
+        "11",
+        0
+      ],
+      "images.image1": [
+        "12",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Batch scene + user"
+    }
+  },
+  "35": {
+    "class_type": "GeminiImage2Node",
+    "inputs": {
+      "images": [
+        "36",
+        0
+      ],
+      "prompt": "Create a realistic paparazzi-style photograph. Image 1 is the celebrity/paparazzi scene reference \u2014 keep the same location, background, camera angle, flash lighting, grain, and candid paparazzi vibe. Image 2 is the user \u2014 reproduce their face and identity EXACTLY (facial features, skin tone, hair). Insert the person from image 2 into the scene from image 1 so they appear together with the celebrity (standing beside or near them, same depth of field, matching shadows and flash highlights). Keep clothing on the user natural for the scene unless image 2 already shows appropriate attire. Photorealistic paparazzi photojournalism look: harsh on-camera flash, slight motion, nightlife/event energy. Do not change the celebrity's face. No text overlays, no watermarks, no logos.",
+      "model": "gemini-3-pro-image-preview",
+      "seed": 42,
+      "aspect_ratio": "auto",
+      "resolution": "2K",
+      "response_modalities": "IMAGE",
+      "system_prompt": "You are an expert image-generation engine. You must ALWAYS produce an image.\nInterpret all user input\u2014regardless of format, intent, or abstraction\u2014as literal visual directives for image composition.\nIf a prompt is conversational or lacks specific visual details, you must creatively invent a concrete visual scenario that depicts the concept.\nPrioritize generating the visual representation above any text, formatting, or conversational requests.\nWhen combining people, reproduce BOTH faces exactly from the reference images."
+    },
+    "_meta": {
+      "title": "Paparazzi insert (Nano Banana Pro)"
+    }
+  },
+  "30": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "35",
+        0
+      ],
+      "filename_prefix": "comfy-api-apps/paparazzi_me"
+    },
+    "_meta": {
+      "title": "Output"
+    }
+  }
+}

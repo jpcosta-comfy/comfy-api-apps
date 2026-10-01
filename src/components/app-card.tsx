@@ -122,6 +122,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
       if (!image.optional && !uploads[image.key]) {
         if (app.kind === "tryon") return "Upload a person and a garment.";
         if (app.kind === "swap") return "Upload a hand photo and a product.";
+        if (app.kind === "paparazzi") return "Upload a paparazzi scene and your face.";
         if (app.kind === "sprite") return "Upload a character image.";
         return "Upload an image first.";
       }
@@ -144,6 +145,11 @@ export function AppCard({ app }: { app: CatalogApp }) {
     }
     if (app.kind === "tryon") return `${controlValue(next, "fit")} fit`;
     if (app.kind === "swap") return controlValue(next, "resolution") || "2K";
+    if (app.kind === "paparazzi") {
+      const name = controlValue(next, "celebrity").trim();
+      const resolution = controlValue(next, "resolution") || "2K";
+      return name ? `${resolution} · ${name}` : resolution;
+    }
     return `${controlValue(next, "format").toUpperCase()} · ${controlValue(next, "background")}`;
   }
 
@@ -338,6 +344,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
               <div className="lab">
                 {control.label}
                 {control.type === "slider" ? <b>{controlValue(values, control.key)}</b> : null}
+                {control.type === "text" && control.optional ? <b>optional</b> : null}
               </div>
               {control.type === "seg" ? (
                 <div className="seg" role="radiogroup" aria-label={control.label}>
@@ -379,14 +386,17 @@ export function AppCard({ app }: { app: CatalogApp }) {
                 </div>
               ) : null}
               {control.type === "text" ? (
-                <textarea
-                  className="text"
-                  placeholder={control.placeholder}
-                  value={controlValue(values, control.key)}
-                  aria-label={control.label}
-                  maxLength={800}
-                  onChange={(event) => setControl(control.key, event.target.value)}
-                />
+                <>
+                  <textarea
+                    className="text"
+                    placeholder={control.placeholder}
+                    value={controlValue(values, control.key)}
+                    aria-label={control.label}
+                    maxLength={800}
+                    onChange={(event) => setControl(control.key, event.target.value)}
+                  />
+                  {control.hint ? <p className="field-note">{control.hint}</p> : null}
+                </>
               ) : null}
             </div>
           ))}

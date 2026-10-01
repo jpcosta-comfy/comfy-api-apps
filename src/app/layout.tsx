@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Comfy API Apps",
   description:
-    "Sprite Generator, Virtual Try On, Hand Product Swap, and Background Removal on personal Comfy deployments.",
+    "Sprite Generator, Virtual Try On, Hand Product Swap, Paparazzi Me, and Background Removal on personal Comfy deployments.",
 };
 
 export const viewport: Viewport = {

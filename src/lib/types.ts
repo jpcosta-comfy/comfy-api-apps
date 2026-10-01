@@ -66,6 +66,8 @@ export type TextControl = {
   label: string;
   placeholder: string;
   default: string;
+  optional?: boolean;
+  hint?: string;
   clientOnly?: boolean;
 };
 
@@ -89,7 +91,7 @@ export type CatalogApp = {
   runLabel: string;
   endpoint: string;
   views: [string, string];
-  kind: "relight" | "upscale" | "sprite" | "tryon" | "cutout" | "swap";
+  kind: "relight" | "upscale" | "sprite" | "tryon" | "cutout" | "swap" | "paparazzi";
   images: CatalogImage[];
   controls: ClientControl[];
   hasSeed: boolean;

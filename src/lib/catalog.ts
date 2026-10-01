@@ -66,6 +66,19 @@ const CHROME: Record<
       { key: "product", label: "Product" },
     ],
   },
+  "paparazzi-me": {
+    icon: "flash",
+    name: "Paparazzi Me",
+    tagline: "Insert yourself into a paparazzi shot",
+    runLabel: "Insert me",
+    views: ["Result", "Compare"],
+    kind: "paparazzi",
+    empty: "Upload a scene and your face",
+    images: [
+      { key: "scene", label: "Scene" },
+      { key: "user", label: "Your face" },
+    ],
+  },
   "background-removal": {
     icon: "cutout",
     name: "Background removal",
@@ -178,6 +191,31 @@ function controlsFor(id: string, app: AppConfig): ClientControl[] {
         options: RESOLUTION_OPTIONS.map((option) => ({ ...option })),
         default: app.params.resolution.default ?? "2K",
       },
+    ];
+  }
+  if (id === "paparazzi-me") {
+    return [
+      {
+        type: "text",
+        key: "celebrity",
+        label: "Celebrity name",
+        placeholder: "e.g. Zendaya",
+        default: "",
+        optional: true,
+        clientOnly: true,
+        hint: "Name search isn't available yet. Upload a scene photo to run.",
+      },
+      ...(app.params.resolution
+        ? [
+            {
+              type: "seg" as const,
+              key: "resolution",
+              label: "Resolution",
+              options: RESOLUTION_OPTIONS.map((option) => ({ ...option })),
+              default: app.params.resolution.default ?? "2K",
+            },
+          ]
+        : []),
     ];
   }
   if (id === "background-removal") {

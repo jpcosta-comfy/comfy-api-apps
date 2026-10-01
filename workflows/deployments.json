@@ -9,7 +9,8 @@
       "deploymentId": "dep-1a2d3e32-57f0-4617-8ee1-a302160f4cb8",
       "endpointUrl": "https://dep-1a2d3e32-57f0-4617-8ee1-a302160f4cb8.run.comfy.app",
       "releaseId": "62f59cb5-5d96-49dc-995c-bcd828332b49",
-      "env": "COMFY_BASE_URL_PRODUCT_RELIGHT"
+      "env": "COMFY_BASE_URL_PRODUCT_RELIGHT",
+      "note": "The Comfy release and deployment were deleted to free the release cap. Left as the last known host. Do not replace the URL."
     },
     "image-upscaler": {
       "deploymentId": "dep-226ed4ac-b5eb-4d8d-bb9c-51907d71718a",
@@ -41,6 +42,12 @@
       "endpointUrl": "https://dep-9a807afc-d80c-43de-adc4-d0eee9a73655.run.comfy.app",
       "releaseId": "49f65016-0377-426a-ae31-ba65b9d999aa",
       "env": "COMFY_BASE_URL_HAND_PRODUCT_SWAP"
+    },
+    "paparazzi-me": {
+      "deploymentId": "dep-be6a6286-e47c-4e0f-b9fc-8fad55236367",
+      "endpointUrl": "https://dep-be6a6286-e47c-4e0f-b9fc-8fad55236367.run.comfy.app",
+      "releaseId": "6acb3e92-d9c7-4a15-8f32-a2ba420f139f",
+      "env": "COMFY_BASE_URL_PAPARAZZI_ME"
     }
   }
 }

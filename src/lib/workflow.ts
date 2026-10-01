@@ -33,6 +33,8 @@ const FILE_NAMES: Record<string, string> = {
   garment: "garment.png",
   hand: "hand.png",
   product: "product.png",
+  scene: "scene.png",
+  user: "user.png",
 };
 
 export function filePathFor(role: string): string {

@@ -35,6 +35,7 @@ const EXPECTED_ENDPOINTS: Record<string, string> = {
   "background-removal": "https://dep-e45cb437-0991-4689-9f7c-77d5748e3adc.run.comfy.app",
   "virtual-try-on": "https://dep-d99a045a-86e9-4251-bbae-0a88940f78d1.run.comfy.app",
   "hand-product-swap": "https://dep-9a807afc-d80c-43de-adc4-d0eee9a73655.run.comfy.app",
+  "paparazzi-me": "https://dep-be6a6286-e47c-4e0f-b9fc-8fad55236367.run.comfy.app",
 };
 
 const deploymentEnvNames = Object.keys(EXPECTED_ENDPOINTS).map(deploymentEnvName);
@@ -44,10 +45,16 @@ for (const name of deploymentEnvNames) delete process.env[name];
 delete process.env.COMFY_CLOUD_BASE_URL;
 
 assert.deepEqual([...listAppIds()].sort(), Object.keys(EXPECTED_ENDPOINTS).sort());
-assert.deepEqual(listVisibleAppIds(), ["sprite-generator", "virtual-try-on", "hand-product-swap", "background-removal"]);
+assert.deepEqual(listVisibleAppIds(), [
+  "sprite-generator",
+  "virtual-try-on",
+  "hand-product-swap",
+  "paparazzi-me",
+  "background-removal",
+]);
 assert.deepEqual(
   buildCatalog().map((app) => app.id),
-  ["sprite-generator", "virtual-try-on", "hand-product-swap", "background-removal"],
+  ["sprite-generator", "virtual-try-on", "hand-product-swap", "paparazzi-me", "background-removal"],
 );
 const swapCatalog = buildCatalog().find((app) => app.id === "hand-product-swap");
 assert.equal(swapCatalog?.name, "Hand product swap");
@@ -59,6 +66,23 @@ assert.deepEqual(
 );
 assert.equal(swapCatalog?.hasSeed, true);
 assert.equal(swapCatalog?.controls.some((control) => control.key === "resolution"), true);
+const paparazziCatalog = buildCatalog().find((app) => app.id === "paparazzi-me");
+assert.equal(paparazziCatalog?.name, "Paparazzi Me");
+assert.equal(paparazziCatalog?.tagline, "Insert yourself into a paparazzi shot");
+assert.equal(paparazziCatalog?.kind, "paparazzi");
+assert.equal(paparazziCatalog?.runLabel, "Insert me");
+assert.deepEqual(
+  paparazziCatalog?.images.map((image) => image.key),
+  ["scene", "user"],
+);
+assert.equal(paparazziCatalog?.images.every((image) => !image.optional), true);
+assert.equal(paparazziCatalog?.hasSeed, true);
+const celebrity = paparazziCatalog?.controls.find((control) => control.key === "celebrity");
+assert.equal(celebrity?.type, "text");
+assert.equal(celebrity && "clientOnly" in celebrity ? celebrity.clientOnly : false, true);
+assert.equal(paparazziCatalog?.controls.some((control) => control.key === "resolution"), true);
+assert.equal(getApp("paparazzi-me")?.enabled, true);
+assert.equal(getApp("paparazzi-me")?.partnerNodes, true);
 assert.equal(getApp("product-relight")?.enabled, false);
 assert.equal(getApp("image-upscaler")?.enabled, false);
 assert.equal(getApp("sprite-generator")?.enabled, true);
@@ -108,6 +132,7 @@ const upscale = mustApp("image-upscaler");
 const sprite = mustApp("sprite-generator");
 const tryon = mustApp("virtual-try-on");
 const swap = mustApp("hand-product-swap");
+const paparazzi = mustApp("paparazzi-me");
 const cutout = mustApp("background-removal");
 
 const words = relight.intensityWords!;
@@ -228,6 +253,51 @@ assert.equal((swapped.workflow["11"].inputs.image as { info: { file_path: string
 assert.equal(swapped.extra_data?.api_key_comfy_org, secret);
 assert.equal(swap.partnerNodes, true);
 assert.equal(swap.enabled, true);
+
+const paparazziPrompt =
+  "Create a realistic paparazzi-style photograph. Image 1 is the celebrity/paparazzi scene reference — keep the same location, background, camera angle, flash lighting, grain, and candid paparazzi vibe. Image 2 is the user — reproduce their face and identity EXACTLY (facial features, skin tone, hair). Insert the person from image 2 into the scene from image 1 so they appear together with the celebrity (standing beside or near them, same depth of field, matching shadows and flash highlights). Keep clothing on the user natural for the scene unless image 2 already shows appropriate attire. Photorealistic paparazzi photojournalism look: harsh on-camera flash, slight motion, nightlife/event energy. Do not change the celebrity's face. No text overlays, no watermarks, no logos.";
+assert.equal(buildPrompt(paparazzi, { hasImage: true }), paparazziPrompt);
+assert.equal(paparazzi.imageInputs.scene?.node, "11");
+assert.equal(paparazzi.imageInputs.user?.node, "12");
+assert.equal(paparazzi.imageInputs.scene?.maxSide, 1536);
+assert.equal(paparazzi.imageInputs.user?.maxSide, 1536);
+assert.equal(paparazzi.params.prompt?.node, "35");
+assert.equal(paparazzi.params.seed?.node, "35");
+assert.equal(paparazzi.params.resolution?.node, "35");
+assert.equal(paparazzi.output.node, "30");
+assert.equal(paparazzi.cloudWorkflowId, "205a6275-4330-48db-9177-63746095b7b5");
+const inserted = buildJobBody(
+  paparazzi,
+  {
+    scene: { id: "12121212-1212-4121-8121-121212121212", filePath: "scene.png" },
+    user: { id: "34343434-3434-4434-8434-343434343434", filePath: "user.png" },
+  },
+  { resolution: "2K", seed: 21, hasImage: false },
+  secret,
+);
+assert.equal(inserted.workflow["35"].class_type, "GeminiImage2Node");
+assert.equal(inserted.workflow["35"].inputs.prompt, paparazziPrompt);
+assert.equal(inserted.workflow["35"].inputs.seed, 21);
+assert.equal(inserted.workflow["35"].inputs.resolution, "2K");
+assert.equal(inserted.workflow["35"].inputs.model, "gemini-3-pro-image-preview");
+assert.equal(inserted.workflow["11"].class_type, "LoadImage");
+assert.equal(inserted.workflow["12"].class_type, "LoadImage");
+assert.equal(inserted.workflow["36"].class_type, "BatchImagesNode");
+assert.equal(inserted.workflow["30"].class_type, "SaveImage");
+assert.equal((inserted.workflow["11"].inputs.image as { info: { file_path: string } }).info.file_path, "scene.png");
+assert.equal((inserted.workflow["12"].inputs.image as { info: { file_path: string } }).info.file_path, "user.png");
+assert.equal(inserted.extra_data?.api_key_comfy_org, secret);
+assert.equal(JSON.stringify(inserted).includes("cloud.comfy.org"), false);
+assert.throws(
+  () =>
+    buildJobBody(
+      paparazzi,
+      { scene: { id: "12121212-1212-4121-8121-121212121212", filePath: "scene.png" } },
+      { resolution: "2K", seed: 21, hasImage: false },
+      secret,
+    ),
+  /required image/i,
+);
 assert.throws(
   () =>
     buildJobBody(
@@ -348,6 +418,15 @@ assert.ok(vtoPng.byteLength > 100);
 const swapJob = await saveMockJob(swap, "hand-product-swap", { resolution: "2K", seed: 3 }, { hand: sample, product: garment });
 const swapPng = await renderMockOutput(swapJob.outputId, undefined);
 assert.ok(swapPng.byteLength > 100);
+
+const paparazziJob = await saveMockJob(
+  paparazzi,
+  "paparazzi-me",
+  { resolution: "2K", seed: 5 },
+  { scene: sample, user: garment },
+);
+const paparazziPng = await renderMockOutput(paparazziJob.outputId, undefined);
+assert.ok(paparazziPng.byteLength > 100);
 
 const cutJob = await saveMockJob(cutout, "background-removal", {}, { image: sample });
 const cutPng = await renderMockOutput(cutJob.outputId, undefined);

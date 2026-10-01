@@ -358,6 +358,7 @@ button { cursor: pointer; }
   -webkit-text-stroke: 1px currentColor;
   paint-order: stroke fill;
 }
+.field-note { margin: 6px 0 0; font-size: 12px; line-height: 1.35; color: var(--mute); }
 .need { min-height: 0; font-family: var(--font-mono); font-size: 12px; color: var(--danger); }
 .need:empty { display: none; }
 .need:not(:empty) { min-height: 16px; }
