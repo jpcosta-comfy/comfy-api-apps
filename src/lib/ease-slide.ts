@@ -47,3 +47,17 @@ export function easeSlide(t: number): number {
   const f = x - i;
   return slideLUT[i]! + (slideLUT[i + 1]! - slideLUT[i]!) * f;
 }
+
+/**
+ * Opacity of a card sliding `distance` px. `margin` is the free room between
+ * the page edge and the browser edge. The card stays opaque while it can
+ * still leave through that room, then fades instead of being clipped.
+ */
+export function exitOpacity(traveled: number, margin: number, distance: number): number {
+  if (distance <= 0) return 1;
+  const room = Math.max(0, margin);
+  if (room >= distance) return 1;
+  const overflow = Math.max(0, traveled - room);
+  const span = distance - room;
+  return 1 - Math.min(1, overflow / span);
+}
