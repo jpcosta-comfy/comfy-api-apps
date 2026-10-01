@@ -20,4 +20,4 @@ App parameters: the insert prompt and seed go to node 35. Resolution is optional
 
 The celebrity **name** is search input for the site, not a workflow field. `GET /api/paparazzi/search` returns paparazzi photo candidates. The run downloads the selected photo, or the best match when the user does not pick one, and uploads it as node 11. The selfie is still node 12. A scene file skips search. Comfy does not search the web.
 
-With no search key, the server uses DuckDuckGo image results. Set `SERPAPI_API_KEY`, or both `GOOGLE_CSE_API_KEY` and `GOOGLE_CSE_CX`, or `BING_IMAGE_SEARCH_KEY` to use that provider instead (SerpAPI, then Google, then Bing).
+With no search key, the server uses Wikipedia article photos (Wikimedia Commons JPEG/PNG files). DuckDuckGo is still tried first and skipped when it fails. Set `SERPAPI_API_KEY`, or both `GOOGLE_CSE_API_KEY` and `GOOGLE_CSE_CX`, or `BING_IMAGE_SEARCH_KEY` to use that provider instead (SerpAPI, then Google, then Bing).

@@ -41,7 +41,7 @@ Server only. Locally that is `.env.local`. On Vercel, project `comfy-api-apps`, 
 | `COMFY_BASE_URL_VIRTUAL_TRY_ON` | no | Same. |
 | `COMFY_BASE_URL_HAND_PRODUCT_SWAP` | no | Same. Default host is `https://dep-9a807afc-d80c-43de-adc4-d0eee9a73655.run.comfy.app`. |
 | `COMFY_BASE_URL_PAPARAZZI_ME` | no | Same. Default host is `https://dep-be6a6286-e47c-4e0f-b9fc-8fad55236367.run.comfy.app`. |
-| `SERPAPI_API_KEY` | no | Paparazzi Me image search. Used when set, ahead of Google CSE and Bing. |
+| `SERPAPI_API_KEY` | no | Paparazzi Me image search. Used when set, ahead of Google CSE and Bing. With no search key, Wikipedia photos are used. |
 | `GOOGLE_CSE_API_KEY` | no | Google Programmable Search key. Also set `GOOGLE_CSE_CX`. |
 | `GOOGLE_CSE_CX` | no | Google Programmable Search engine id (`searchType=image`). |
 | `BING_IMAGE_SEARCH_KEY` | no | Bing Image Search subscription key. Used when the keys above are unset. |

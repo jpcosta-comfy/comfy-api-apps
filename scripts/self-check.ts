@@ -27,6 +27,7 @@ import {
   parseDuckDuckGo,
   parseGoogleCse,
   parseSerpApi,
+  parseWikimedia,
   selectCelebrityHits,
   type SearchHit,
 } from "../src/lib/paparazzi-search";
@@ -513,6 +514,45 @@ assert.equal(
 );
 assert.equal(parseBing({ value: [{ name: "A", contentUrl: "https://cdn.example.com/a.jpg", thumbnailUrl: "https://cdn.example.com/t.jpg", width: 8, height: 9 }] })[0]?.width, 8);
 assert.equal(parseDuckDuckGo({}).length, 0);
+const wikiHits = parseWikimedia({
+  items: [
+    {
+      title: "File:Signature_of_Zendaya.svg",
+      type: "image",
+      srcset: [
+        {
+          src: "//upload.wikimedia.org/wikipedia/commons/thumb/4/44/Signature_of_Zendaya.svg/500px-Signature_of_Zendaya.svg.png",
+          scale: "1x",
+        },
+      ],
+    },
+    {
+      title: "File:Zendaya_by_Gage_Skidmore.jpg",
+      type: "image",
+      caption: { text: "Zendaya at San Diego Comic-Con in 2016" },
+      srcset: [
+        {
+          src: "//thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Zendaya_by_Gage_Skidmore.jpg/500px-Zendaya_by_Gage_Skidmore.jpg?utm_source=en.wikipedia.org",
+          scale: "1x",
+        },
+        {
+          src: "//thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Zendaya_by_Gage_Skidmore.jpg/1280px-Zendaya_by_Gage_Skidmore.jpg?utm_source=en.wikipedia.org",
+          scale: "2x",
+        },
+      ],
+    },
+    { title: "File:Interview.ogg", type: "audio" },
+  ],
+});
+assert.equal(wikiHits.length, 1);
+assert.equal(wikiHits[0]?.imageUrl, "https://upload.wikimedia.org/wikipedia/commons/e/eb/Zendaya_by_Gage_Skidmore.jpg");
+assert.equal(
+  wikiHits[0]?.thumbUrl,
+  "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Zendaya_by_Gage_Skidmore.jpg/1280px-Zendaya_by_Gage_Skidmore.jpg",
+);
+assert.equal(wikiHits[0]?.source, "commons.wikimedia.org");
+assert.equal(selectCelebrityHits("Zendaya", wikiHits).length, 1);
+assert.equal(parseWikimedia({}).length, 0);
 
 const savedSearchEnv = {
   SERPAPI_API_KEY: process.env.SERPAPI_API_KEY,
@@ -524,7 +564,7 @@ delete process.env.SERPAPI_API_KEY;
 delete process.env.GOOGLE_CSE_API_KEY;
 delete process.env.GOOGLE_CSE_CX;
 delete process.env.BING_IMAGE_SEARCH_KEY;
-assert.equal(activeSearchProvider(), "duckduckgo");
+assert.equal(activeSearchProvider(), "wikimedia");
 process.env.BING_IMAGE_SEARCH_KEY = "bing-key";
 assert.equal(activeSearchProvider(), "bing");
 process.env.GOOGLE_CSE_API_KEY = "google-key";

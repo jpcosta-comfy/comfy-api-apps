@@ -1,7 +1,7 @@
 import { assertPublicImageUrl } from "@/lib/fetch-image";
 import { AppError } from "@/lib/http";
 
-export type SearchProviderId = "serpapi" | "google-cse" | "bing" | "duckduckgo";
+export type SearchProviderId = "serpapi" | "google-cse" | "bing" | "duckduckgo" | "wikimedia";
 
 export type SearchHit = {
   title: string;
@@ -16,11 +16,21 @@ export type SearchHit = {
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
+/** Wikimedia blocks generic clients. Identify the app; do not send a browser UA. */
+const WIKIMEDIA_UA = "PaparazziMe/1.0 (https://github.com/jpcosta-comfy/comfy-api-apps; celebrity photo lookup)";
+
+const WIKI_HEADERS = {
+  Accept: "application/json",
+  "User-Agent": WIKIMEDIA_UA,
+  "Api-User-Agent": WIKIMEDIA_UA,
+};
+
 const PROVIDER_LABEL: Record<SearchProviderId, string> = {
   serpapi: "SerpAPI",
   "google-cse": "Google",
   bing: "Bing",
   duckduckgo: "DuckDuckGo",
+  wikimedia: "Wikipedia",
 };
 
 export function providerLabel(id: SearchProviderId): string {
@@ -45,7 +55,7 @@ export function celebrityQuery(name: string): string {
   return `${normalizeCelebrityName(name)} paparazzi candid photo`;
 }
 
-/** SerpAPI if set, then Google CSE, then Bing, otherwise DuckDuckGo (no key). */
+/** SerpAPI if set, then Google CSE, then Bing, otherwise Wikipedia (no key). */
 export function activeSearchProvider(): SearchProviderId {
   if (process.env.SERPAPI_API_KEY?.trim()) return "serpapi";
   const googleKey = process.env.GOOGLE_CSE_API_KEY?.trim() ?? "";
@@ -57,7 +67,7 @@ export function activeSearchProvider(): SearchProviderId {
     return "google-cse";
   }
   if (process.env.BING_IMAGE_SEARCH_KEY?.trim()) return "bing";
-  return "duckduckgo";
+  return "wikimedia";
 }
 
 function fold(value: string): string {
@@ -235,11 +245,99 @@ export function parseBing(payload: unknown): SearchHit[] {
   });
 }
 
+const PHOTO_EXT = /\.(jpe?g|png|webp)(\?|$)/i;
+const SKIP_FILE = /\.(svg|gif|tiff?|pdf|ogg|ogv|webm|mp3|wav|mp4)(\?|$)/i;
+
+function absoluteHttps(raw: string): string | null {
+  const trimmed = raw.trim();
+  const withProto = trimmed.startsWith("//") ? `https:${trimmed}` : trimmed;
+  try {
+    const url = new URL(withProto);
+    if (url.protocol !== "https:") return null;
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function thumbPixels(url: string): number {
+  const match = /\/(\d+)px-/i.exec(url);
+  const parsed = match ? Number(match[1]) : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** Largest JPEG/PNG/WebP thumbnail. Wikimedia renders SVG signatures as `.svg.png`. */
+function largestPhotoSrc(srcset: unknown): string | null {
+  if (!Array.isArray(srcset)) return null;
+  let best = "";
+  let bestPx = -1;
+  for (const entry of srcset) {
+    const src = absoluteHttps(text(asRecord(entry)?.src));
+    if (!src || !PHOTO_EXT.test(src) || /\.svg(\.|\/)/i.test(src)) continue;
+    const px = thumbPixels(src);
+    if (px >= bestPx) {
+      bestPx = px;
+      best = src;
+    }
+  }
+  return best || null;
+}
+
+function commonsOriginal(thumbUrl: string): string | null {
+  try {
+    const url = new URL(thumbUrl);
+    const match = url.pathname.match(/^(.*\/)thumb\/(.+)\/\d+px-[^/]+$/i);
+    if (!match?.[1] || !match[2]) return null;
+    const original = `https://upload.wikimedia.org${match[1]}${match[2]}`;
+    return PHOTO_EXT.test(original) ? original : null;
+  } catch {
+    return null;
+  }
+}
+
+function wikiPageUrl(fileTitle: string): string {
+  const normalized = fileTitle.trim().replace(/\s+/g, "_");
+  const path = encodeURIComponent(normalized).replace(/%3A/gi, ":").replace(/%2F/gi, "/");
+  return `https://commons.wikimedia.org/wiki/${path}`;
+}
+
+/** Wikipedia REST `page/media-list` items → Commons JPEG/PNG file URLs. */
+export function parseWikimedia(payload: unknown): SearchHit[] {
+  const items = asRecord(payload)?.items;
+  if (!Array.isArray(items)) return [];
+  return items.flatMap((item) => {
+    const record = asRecord(item);
+    if (!record) return [];
+    const kind = text(record.type);
+    if (kind && kind !== "image") return [];
+    const fileTitle = text(record.title);
+    if (!/^File:/i.test(fileTitle) || SKIP_FILE.test(fileTitle)) return [];
+    if (/\b(signature|autograph)\b/i.test(fileTitle.replace(/_/g, " "))) return [];
+    const thumbUrl = largestPhotoSrc(record.srcset);
+    if (!thumbUrl) return [];
+    const caption = text(asRecord(record.caption)?.text);
+    const pretty = fileTitle.replace(/^File:/i, "").replace(/_/g, " ").replace(/\.[a-z0-9]+$/i, "");
+    return [
+      {
+        title: caption || pretty,
+        imageUrl: commonsOriginal(thumbUrl) ?? thumbUrl,
+        thumbUrl,
+        pageUrl: wikiPageUrl(fileTitle),
+        width: 0,
+        height: 0,
+        source: "commons.wikimedia.org",
+      },
+    ];
+  });
+}
+
 function authHint(provider: SearchProviderId): string {
   if (provider === "serpapi") return "Check SERPAPI_API_KEY on the server.";
   if (provider === "google-cse") return "Check GOOGLE_CSE_API_KEY and GOOGLE_CSE_CX on the server.";
   if (provider === "bing") return "Check BING_IMAGE_SEARCH_KEY on the server.";
-  return "Try again, upload a scene photo, or set SERPAPI_API_KEY (or Google CSE or Bing) on the server.";
+  return "Try again or upload a scene photo.";
 }
 
 function providerFailure(provider: SearchProviderId, status: number): AppError {
@@ -252,7 +350,12 @@ function providerFailure(provider: SearchProviderId, status: number): AppError {
   return new AppError(502, "search_failed", `Image search failed. ${authHint(provider)}`);
 }
 
-async function getJson(url: string, headers: Record<string, string>, provider: SearchProviderId): Promise<unknown> {
+async function getJson(
+  url: string,
+  headers: Record<string, string>,
+  provider: SearchProviderId,
+  notFound?: "empty",
+): Promise<unknown> {
   let res: Response;
   try {
     res = await fetch(url, {
@@ -268,6 +371,7 @@ async function getJson(url: string, headers: Record<string, string>, provider: S
     }
     throw new AppError(502, "search_failed", `Image search is unavailable right now. ${authHint(provider)}`);
   }
+  if (res.status === 404 && notFound === "empty") return null;
   let payload: unknown = null;
   try {
     payload = await res.json();
@@ -361,18 +465,92 @@ async function searchBing(query: string): Promise<SearchHit[]> {
   );
 }
 
+function wikiTitlePath(title: string): string {
+  return encodeURIComponent(title.trim().replace(/\s+/g, "_"));
+}
+
+async function fetchMediaList(title: string): Promise<unknown | null> {
+  const payload = await getJson(
+    `https://en.wikipedia.org/api/rest_v1/page/media-list/${wikiTitlePath(title)}`,
+    WIKI_HEADERS,
+    "wikimedia",
+    "empty",
+  );
+  return payload ?? null;
+}
+
+async function wikipediaCandidateTitles(name: string): Promise<string[]> {
+  const url = `https://en.wikipedia.org/w/api.php?${new URLSearchParams({
+    action: "query",
+    list: "search",
+    srsearch: name,
+    srlimit: "5",
+    srnamespace: "0",
+    format: "json",
+    utf8: "1",
+  })}`;
+  const payload = await getJson(url, WIKI_HEADERS, "wikimedia");
+  const search = asRecord(asRecord(payload)?.query)?.search;
+  if (!Array.isArray(search)) return [];
+  return search.flatMap((item) => {
+    const title = text(asRecord(item)?.title);
+    return title ? [title] : [];
+  });
+}
+
+/**
+ * Article media list for the typed name. If that page is missing or its files
+ * do not mention the person, try Wikipedia search titles (Beyonce → Beyoncé).
+ */
+async function searchWikimedia(name: string): Promise<SearchHit[]> {
+  const tried = new Set<string>();
+  const queue = [name];
+  let searched = false;
+  let collected: SearchHit[] = [];
+  while (queue.length > 0 && tried.size < 4) {
+    const title = queue.shift();
+    if (!title) break;
+    const key = wikiTitlePath(title);
+    if (tried.has(key)) continue;
+    tried.add(key);
+    const payload = await fetchMediaList(title);
+    if (payload) {
+      const hits = parseWikimedia(payload);
+      if (selectCelebrityHits(name, hits).length > 0) return hits;
+      if (hits.length > collected.length) collected = hits;
+    }
+    if (!searched) {
+      searched = true;
+      queue.push(...(await wikipediaCandidateTitles(name)));
+    }
+  }
+  return collected;
+}
+
+/** DuckDuckGo first (often 403 from serverless), then Wikipedia, which must still succeed. */
+async function searchWithoutKey(name: string): Promise<{ provider: SearchProviderId; hits: SearchHit[] }> {
+  try {
+    const ddgHits = selectCelebrityHits(name, await searchDuckDuckGo(celebrityQuery(name)));
+    if (ddgHits.length > 0) return { provider: "duckduckgo", hits: ddgHits };
+  } catch {
+    // Image search from datacenter IPs is frequently forbidden. Wikipedia is the default.
+  }
+  const hits = selectCelebrityHits(name, await searchWikimedia(name));
+  if (hits.length === 0) throw new AppError(404, "no_results", noResultsMessage(name));
+  return { provider: "wikimedia", hits };
+}
+
 export async function searchCelebrityPhotos(rawName: string): Promise<{ provider: SearchProviderId; hits: SearchHit[] }> {
   const name = normalizeCelebrityName(rawName);
   const provider = activeSearchProvider();
+  if (provider === "wikimedia") return searchWithoutKey(name);
   const query = celebrityQuery(name);
   const raw =
     provider === "serpapi"
       ? await searchSerpApi(query)
       : provider === "google-cse"
         ? await searchGoogleCse(query)
-        : provider === "bing"
-          ? await searchBing(query)
-          : await searchDuckDuckGo(query);
+        : await searchBing(query);
   const hits = selectCelebrityHits(name, raw);
   if (hits.length === 0) throw new AppError(404, "no_results", noResultsMessage(name));
   return { provider, hits };
