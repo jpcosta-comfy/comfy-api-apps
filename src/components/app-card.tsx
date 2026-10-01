@@ -761,9 +761,11 @@ function UploadField({
               <img src={upload.url} alt="" />
             </div>
             <div className="up-meta">
-              <div className="fn">{upload.name}</div>
-              <div className="dim">
-                {upload.width} × {upload.height}
+              <div className="up-copy">
+                <div className="fn">{upload.name}</div>
+                <div className="dim">
+                  {upload.width} × {upload.height}
+                </div>
               </div>
               <span className="btn">↻ Replace</span>
             </div>
