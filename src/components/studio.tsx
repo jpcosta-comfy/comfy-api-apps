@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppCard } from "@/components/app-card";
-import { easeSlide, exitOpacity, NAV_MS } from "@/lib/ease-slide";
+import { easeSlide, exitOpacity, MIN_CARD_GAP, NAV_MS, trackGap } from "@/lib/ease-slide";
 import type { CatalogApp } from "@/lib/types";
 
 function mod(value: number, count: number): number {
@@ -33,6 +33,24 @@ function edgeMask(left: number, width: number, viewportWidth: number): string {
   return `linear-gradient(to right, #fff ${end - feather}px, transparent ${end}px)`;
 }
 
+function placedSlot(itemIndex: number, anchor: number, end: number, count: number): number {
+  const low = Math.min(anchor, end) - 1;
+  const high = Math.max(anchor, end) + 1;
+  if (itemIndex >= low && itemIndex <= high) return itemIndex;
+  let placed: number | null = null;
+  let best = Infinity;
+  for (const turn of [-1, 1]) {
+    const pos = itemIndex + turn * count;
+    if (pos < low || pos > high) continue;
+    const dist = Math.abs(pos - end);
+    if (dist < best) {
+      best = dist;
+      placed = pos;
+    }
+  }
+  return placed ?? itemIndex;
+}
+
 function setMask(node: HTMLElement, mask: string) {
   if (!mask) {
     clearMask(node);
@@ -59,9 +77,11 @@ export function Studio({
   const viewportRef = useRef<HTMLDivElement>(null);
   const reelRef = useRef<HTMLDivElement>(null);
   const stageRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const widthRef = useRef(0);
+  const metricsRef = useRef({ width: 0, gap: MIN_CARD_GAP });
   const indexRef = useRef(0);
   const posRef = useRef(0);
+  const anchorRef = useRef(0);
+  const trackEndRef = useRef(0);
   const busyRef = useRef(false);
   const animRef = useRef<{ from: number; to: number; t0: number } | null>(null);
   const rafRef = useRef(0);
@@ -69,11 +89,11 @@ export function Studio({
   const [trackPos, setTrackPos] = useState(0);
   const [anchor, setAnchor] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [width, setWidth] = useState(0);
+  const [metrics, setMetrics] = useState({ width: 0, gap: MIN_CARD_GAP });
 
   const current = apps[index];
-  const cardW = Math.max(0, width);
-  const step = cardW;
+  const cardW = Math.max(0, metrics.width);
+  const step = cardW + metrics.gap;
 
   function setSlideOpen(open: boolean) {
     viewportRef.current?.classList.toggle("is-open", open);
@@ -93,47 +113,34 @@ export function Studio({
       }
       return;
     }
-    const viewport = viewportRef.current;
-    const size = widthRef.current;
-    if (!viewport || size <= 0) return;
-    const page = viewport.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const dir = Math.sign(anim.to - anim.from);
-    const traveled = Math.abs(pos - anim.from) * size;
-    const margin = dir > 0 ? page.left : viewportWidth - page.right;
-    const faded = exitOpacity(traveled, margin, size);
-    const boxes: Array<{ node: HTMLDivElement; left: number; right: number; width: number }> = [];
+    const viewW = document.documentElement.clientWidth;
+    const span = anim.to - anim.from;
+    const progress = span === 0 ? 1 : (pos - anim.from) / span;
+    const faded = exitOpacity(progress);
     for (let i = 0; i < count; i++) {
       const node = nodes[i];
       if (!node) continue;
-      const rect = node.getBoundingClientRect();
-      const hits = rect.width > 0 && rect.right > 0 && rect.left < viewportWidth;
-      if (!hits) {
-        node.style.opacity = "0";
-        node.style.pointerEvents = "none";
+      const slot = placedSlot(i, anchorRef.current, trackEndRef.current, count);
+      const leaving = slot === anim.from;
+      const traveling = span > 0 ? slot > anim.from && slot <= anim.to : slot < anim.from && slot >= anim.to;
+      const opacity = leaving ? faded : traveling ? 1 : 0;
+      node.style.opacity = String(opacity);
+      node.style.pointerEvents = "none";
+      if (opacity <= 0) {
         clearMask(node);
         continue;
       }
-      boxes.push({ node, left: rect.left, right: rect.right, width: rect.width });
-    }
-    let outgoing = boxes[0];
-    for (const box of boxes) {
-      if (!outgoing) break;
-      if (dir > 0 ? box.left < outgoing.left : box.right > outgoing.right) outgoing = box;
-    }
-    for (const box of boxes) {
-      const leaving = box === outgoing;
-      box.node.style.opacity = leaving ? String(faded) : "1";
-      box.node.style.pointerEvents = "none";
-      setMask(box.node, edgeMask(box.left, box.width, viewportWidth));
+      const rect = node.getBoundingClientRect();
+      setMask(node, edgeMask(rect.left, rect.width, viewW));
     }
   }
 
   function paint(pos: number) {
     const reel = reelRef.current;
-    const size = widthRef.current;
-    if (!reel || size <= 0) return;
-    reel.style.transform = `translate3d(${-pos * size}px, 0, 0)`;
+    const { width, gap } = metricsRef.current;
+    if (!reel || width <= 0) return;
+    reel.style.gap = `${gap}px`;
+    reel.style.transform = `translate3d(${-pos * (width + gap)}px, 0, 0)`;
     reveal(pos);
   }
 
@@ -142,6 +149,8 @@ export function Studio({
     animRef.current = null;
     posRef.current = settled;
     indexRef.current = settled;
+    anchorRef.current = settled;
+    trackEndRef.current = settled;
     busyRef.current = false;
     setSlideOpen(false);
     setIndex(settled);
@@ -172,15 +181,15 @@ export function Studio({
     }
     setSlideOpen(false);
     paint(trackPos);
-    // paint and reveal read refs. This effect re-runs when the track moves or the width changes.
+    // paint and reveal read refs. This effect re-runs when the track moves or the card size changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackPos, width]);
+  }, [trackPos, metrics.width, metrics.gap]);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
     const desktop = window.matchMedia("(min-width: 981px)").matches;
-    if (desktop || width <= 0) {
+    if (desktop || metrics.width <= 0) {
       viewport.style.height = "";
       return;
     }
@@ -194,33 +203,41 @@ export function Studio({
     const observer = new ResizeObserver(apply);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [index, width]);
+  }, [index, metrics.width]);
 
   useLayoutEffect(() => {
     const node = viewportRef.current;
     if (!node) return;
     const read = () => {
-      const next = node.clientWidth;
-      if (widthRef.current === next) return;
-      widthRef.current = next;
+      const rect = node.getBoundingClientRect();
+      const viewW = document.documentElement.clientWidth;
+      const margin = Math.max(rect.left, viewW - rect.right);
+      const next = { width: node.clientWidth, gap: trackGap(margin) };
+      const prev = metricsRef.current;
+      if (prev.width === next.width && prev.gap === next.gap) return;
+      metricsRef.current = next;
       if (animRef.current) {
         cancelAnimationFrame(rafRef.current);
         animRef.current = null;
         const settled = mod(indexRef.current, count);
         posRef.current = settled;
+        anchorRef.current = settled;
+        trackEndRef.current = settled;
         busyRef.current = false;
         setSlideOpen(false);
         setBusy(false);
         setAnchor(settled);
         setTrackPos(settled);
       }
-      setWidth(next);
+      setMetrics(next);
     };
     read();
     const observer = new ResizeObserver(read);
     observer.observe(node);
+    window.addEventListener("resize", read);
     return () => {
       observer.disconnect();
+      window.removeEventListener("resize", read);
       cancelAnimationFrame(rafRef.current);
     };
   }, [count]);
@@ -237,9 +254,11 @@ export function Studio({
     indexRef.current = next;
     setIndex(next);
     cancelAnimationFrame(rafRef.current);
-    if (reduce || widthRef.current <= 0) {
+    if (reduce || metricsRef.current.width <= 0) {
       animRef.current = null;
       posRef.current = next;
+      anchorRef.current = next;
+      trackEndRef.current = next;
       busyRef.current = false;
       setSlideOpen(false);
       setBusy(false);
@@ -249,6 +268,8 @@ export function Studio({
     }
     const fromPos = posRef.current;
     const dest = fromPos + delta;
+    anchorRef.current = fromPos;
+    trackEndRef.current = dest;
     busyRef.current = true;
     setSlideOpen(true);
     setBusy(true);
@@ -280,22 +301,9 @@ export function Studio({
   }, []);
 
   function cardShift(itemIndex: number): string | undefined {
-    if (step <= 0) return undefined;
-    const low = Math.min(anchor, trackPos) - 1;
-    const high = Math.max(anchor, trackPos) + 1;
-    if (itemIndex >= low && itemIndex <= high) return undefined;
-    let placed: number | null = null;
-    let best = Infinity;
-    for (const turn of [-1, 1]) {
-      const pos = itemIndex + turn * count;
-      if (pos < low || pos > high) continue;
-      const dist = Math.abs(pos - trackPos);
-      if (dist < best) {
-        best = dist;
-        placed = pos;
-      }
-    }
-    if (placed === null) return undefined;
+    if (cardW <= 0) return undefined;
+    const placed = placedSlot(itemIndex, anchor, trackPos, count);
+    if (placed === itemIndex) return undefined;
     return `translate3d(${(placed - itemIndex) * step}px, 0, 0)`;
   }
 
@@ -331,7 +339,7 @@ export function Studio({
             <div
               className="reel"
               ref={reelRef}
-              style={{ pointerEvents: busy ? "none" : undefined }}
+              style={{ gap: metrics.gap, pointerEvents: busy ? "none" : undefined }}
             >
               {apps.map((item, itemIndex) => (
                 <div

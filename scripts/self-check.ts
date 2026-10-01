@@ -31,7 +31,7 @@ import {
   selectCelebrityHits,
   type SearchHit,
 } from "../src/lib/paparazzi-search";
-import { easeSlide, exitOpacity } from "../src/lib/ease-slide";
+import { easeSlide, exitOpacity, trackGap } from "../src/lib/ease-slide";
 import { readSceneChoice, signSceneChoice } from "../src/lib/scene-token";
 import { buildJobBody, redactJobBody } from "../src/lib/workflow";
 
@@ -613,11 +613,15 @@ assert.ok(easeSlide(0.2) < 0.08, "launch stays slow");
 assert.ok(Math.abs(easeSlide(0.365) - 0.829763) < 1e-4, "position at the velocity peak");
 assert.ok(easeSlide(0.5) > 0.7, "most of the travel is past the velocity peak");
 assert.ok(easeSlide(0.99) > 0.99, "tail arrives before the end");
-assert.equal(exitOpacity(0, 130, 1180), 1);
-assert.equal(exitOpacity(130, 130, 1180), 1);
-assert.equal(exitOpacity(1180, 2000, 1180), 1);
-assert.equal(exitOpacity(1180, 130, 1180), 0);
-assert.ok(Math.abs(exitOpacity(655, 130, 1180) - 0.5) < 1e-9);
+assert.equal(exitOpacity(0), 1);
+assert.equal(exitOpacity(1), 0);
+assert.equal(exitOpacity(0.25), 0.75);
+assert.equal(exitOpacity(-0.2), 1);
+assert.equal(exitOpacity(1.2), 0);
+assert.equal(trackGap(12), 32);
+assert.equal(trackGap(0), 32);
+assert.equal(trackGap(130), 131);
+assert.equal(trackGap(130.2), 132);
 
 console.log("self-check ok");
 }

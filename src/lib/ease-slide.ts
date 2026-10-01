@@ -48,16 +48,20 @@ export function easeSlide(t: number): number {
   return slideLUT[i]! + (slideLUT[i + 1]! - slideLUT[i]!) * f;
 }
 
+/** Smallest space between two cards while they travel. */
+export const MIN_CARD_GAP = 32;
+
 /**
- * Opacity of a card sliding `distance` px. `margin` is the free room between
- * the page edge and the browser edge. The card stays opaque while it can
- * still leave through that room, then fades instead of being clipped.
+ * Space between cards. At least {@link MIN_CARD_GAP}, and at least the page
+ * margin plus one pixel so the neighbor starts outside the browser viewport.
  */
-export function exitOpacity(traveled: number, margin: number, distance: number): number {
-  if (distance <= 0) return 1;
-  const room = Math.max(0, margin);
-  if (room >= distance) return 1;
-  const overflow = Math.max(0, traveled - room);
-  const span = distance - room;
-  return 1 - Math.min(1, overflow / span);
+export function trackGap(margin: number): number {
+  return Math.max(MIN_CARD_GAP, Math.ceil(Math.max(0, margin)) + 1);
+}
+
+/** Outgoing opacity across the same progress as the slide. 1 at the start, 0 at the end. */
+export function exitOpacity(progress: number): number {
+  if (progress <= 0) return 1;
+  if (progress >= 1) return 0;
+  return 1 - progress;
 }
