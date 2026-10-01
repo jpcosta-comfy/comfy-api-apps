@@ -426,6 +426,9 @@ a { color: inherit; }
 
 .upload {
   position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
   min-height: 0;
   border-radius: 10px;
   background: var(--paper);
@@ -440,13 +443,13 @@ a { color: inherit; }
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 8px;
+  max-width: 100%;
   padding: 8px 8px 8px 12px;
 }
 .up-empty .hint {
-  flex: 1 1 auto;
-  min-width: max-content;
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 .up-empty .btn {
@@ -474,17 +477,23 @@ a { color: inherit; }
 .btn:hover { background: var(--well); }
 .btn.dark:hover { background: #2c2433; color: #fff; border-color: #2c2433; }
 .btn:disabled { opacity: 0.4; cursor: default; }
-.up-done { display: flex; align-items: center; gap: 8px; padding: 8px; }
+.up-done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: 100%;
+  padding: 8px;
+}
 .up-meta {
   min-width: 0;
-  flex: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto auto;
+  flex: 0 1 auto;
+  display: flex;
   align-items: center;
-  column-gap: 8px;
+  gap: 8px;
 }
-.up-meta .btn { grid-column: 2; grid-row: 1 / span 2; }
+.up-copy { min-width: 0; }
+.up-meta .btn { flex: none; }
 .thumb {
   width: 36px;
   height: 36px;
