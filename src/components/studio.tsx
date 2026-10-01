@@ -310,11 +310,22 @@ export function Studio({
   return (
     <div className="app">
       <header className="site-header">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">✦</span>
-          Comfy API Apps
+        <div className="header-bar">
+          <div className="brand">
+            <span className="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 32 32" width="22" height="22">
+                <rect width="32" height="32" rx="8" fill="#211927" />
+                <path
+                  transform="translate(4.2 3.4) scale(0.52)"
+                  fill="#F2FF59"
+                  d="M35.6487 36.021C35.733 35.7387 35.7791 35.4411 35.7791 35.1283C35.7791 33.3963 34.3675 31.9924 32.6262 31.9924H18.4956C17.7361 32 17.1147 31.3896 17.1147 30.6342C17.1147 30.4969 17.1377 30.3672 17.1684 30.2451L20.9734 17.0606C21.1345 16.4807 21.6715 16.0534 22.3005 16.0534L36.4848 16.0382C39.4766 16.0382 42.0005 14.0315 42.76 11.2923L44.8926 3.94468C44.9616 3.68526 45 3.40296 45 3.12065C45 1.39628 43.5961 0 41.8624 0L24.7017 0C21.7252 0 19.209 1.99142 18.4342 4.70005L16.992 9.71292C16.8232 10.2852 16.2939 10.7048 15.6648 10.7048H11.5453C8.59189 10.7048 6.0987 12.6581 5.30089 15.3362L0.11507 33.3505C0.0383566 33.6175 0 33.9075 0 34.1974C0 35.9294 1.41152 37.3333 3.15292 37.3333H7.20338C7.96284 37.3333 8.58421 37.9437 8.58421 38.7067C8.58421 38.8364 8.56887 38.9661 8.53051 39.0882L7.09598 44.0553C7.02694 44.3224 6.98091 44.597 6.98091 44.8794C6.98091 46.6037 8.38476 48 10.1185 48L27.2869 47.9847C30.2711 47.9847 32.7873 45.9857 33.5544 43.2618L35.641 36.0286L35.6487 36.021Z"
+                />
+              </svg>
+            </span>
+            <span className="brand-word">Comfy API Apps</span>
+          </div>
+          <div className="header-actions">{mock ? <span className="mockpill">Mock mode</span> : null}</div>
         </div>
-        <div className="header-actions">{mock ? <span className="mockpill">Mock mode</span> : null}</div>
       </header>
       <main className="page">
         <div className="hero">
@@ -333,7 +344,9 @@ export function Studio({
         </nav>
         <div className="stage-wrap">
           <button className="nav-arrow prev" type="button" aria-label="Previous app" onClick={() => goTo(index - 1)}>
-            ‹
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M10.25 3.25 5.5 8l4.75 4.75" />
+            </svg>
           </button>
           <div className={busy ? "track-viewport is-open" : "track-viewport"} ref={viewportRef}>
             <div
@@ -363,7 +376,9 @@ export function Studio({
             </div>
           </div>
           <button className="nav-arrow next" type="button" aria-label="Next app" onClick={() => goTo(index + 1)}>
-            ›
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M5.75 3.25 10.5 8l-4.75 4.75" />
+            </svg>
           </button>
         </div>
         <div className="dots">
