@@ -274,14 +274,14 @@ export function Studio({
       <footer className="site-footer">
         <p>
           Fun apps made by{" "}
-          <a href="https://x.com/ojotapcosta" target="_blank" rel="noopener noreferrer">
+          <a href="https://x.com/jp_costa" target="_blank" rel="noopener noreferrer">
             JP Costa
           </a>
           .
         </p>
         <p>
           Powered by{" "}
-          <a href="https://www.comfy.org/" target="_blank" rel="noopener noreferrer">
+          <a href="https://comfy.org/platform/comfy-api/" target="_blank" rel="noopener noreferrer">
             ComfyUI
           </a>{" "}
           on{" "}
