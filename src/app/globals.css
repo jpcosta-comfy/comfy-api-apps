@@ -244,12 +244,27 @@ a { color: inherit; }
   display: flex;
   flex-direction: column;
 }
-.track {
+/* Not `.track`: that name is the run-progress bar, and its 6px pill rules were clipping this row. */
+.reel {
   display: flex;
   align-items: stretch;
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
+  min-width: max-content;
+  height: auto;
+  margin: 0;
+  border-radius: 0;
+  overflow: visible;
+  background: none;
   will-change: transform;
+  transition: transform 0.99s cubic-bezier(0.61, 0.92, 0.21, 1);
+}
+.reel.is-instant,
+.reel.is-instant .stage {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reel { transition: none; }
 }
 .stage {
   display: flex;
@@ -872,7 +887,7 @@ button.run .label { position: relative; }
   .nav-arrow { display: none; }
   .stage-wrap { display: block; flex: none; position: static; }
   .track-viewport { display: block; height: auto; flex: none; overflow: hidden; }
-  .track { height: auto; flex: none; align-items: flex-start; }
+  .reel { height: auto; flex: none; align-items: flex-start; min-width: max-content; }
   .stage { display: block; height: auto; align-self: auto; }
   .stage-body { display: block; height: auto; flex: none; }
   .card { height: auto; flex: none; padding: 14px; border-radius: 22px; position: relative; z-index: 1; }

@@ -4,14 +4,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppCard } from "@/components/app-card";
 import type { CatalogApp } from "@/lib/types";
 
-/** Storyboard NAV_S. The slide lasts just under a second. */
-const NAV_S = 0.99;
-/**
- * Approximates ease.slide: velocity peaks near SLIDE_P (0.365), then eases
- * out to a stop. Both control points stay inside the unit box, so the curve
- * never overshoots.
- */
-const SLIDE_EASE = "cubic-bezier(0.61, 0.92, 0.21, 1)";
 const DESKTOP_PEEK = 48;
 const DESKTOP_GAP = 16;
 
@@ -27,13 +19,14 @@ export function Studio({
   const count = apps.length;
   const viewportRef = useRef<HTMLDivElement>(null);
   const stageRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const metricsRef = useRef({ width: 0, peek: 0, gap: 0 });
   const indexRef = useRef(0);
   const posRef = useRef(0);
   const busyRef = useRef(false);
   const [index, setIndex] = useState(0);
   const [trackPos, setTrackPos] = useState(0);
   const [anchor, setAnchor] = useState(0);
-  const [motion, setMotion] = useState(false);
+  const [instant, setInstant] = useState(true);
   const [busy, setBusy] = useState(false);
   const [metrics, setMetrics] = useState({ width: 0, peek: 0, gap: 0 });
 
@@ -41,15 +34,16 @@ export function Studio({
   const cardW = Math.max(0, metrics.width - metrics.peek * 2);
   const step = cardW + metrics.gap;
 
-  useLayoutEffect(() => {
-    if (busyRef.current) return;
-    setMotion(false);
-  }, [metrics.width, metrics.peek, metrics.gap]);
-
   useEffect(() => {
     if (metrics.width <= 0) return;
-    const frame = requestAnimationFrame(() => setMotion(true));
-    return () => cancelAnimationFrame(frame);
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setInstant(false));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
   }, [metrics.width, metrics.peek, metrics.gap]);
 
   useLayoutEffect(() => {
@@ -81,7 +75,11 @@ export function Studio({
         peek: desktop ? DESKTOP_PEEK : 0,
         gap: desktop ? DESKTOP_GAP : 0,
       };
-      setMetrics((prev) => (prev.width === next.width && prev.peek === next.peek && prev.gap === next.gap ? prev : next));
+      const prev = metricsRef.current;
+      if (prev.width === next.width && prev.peek === next.peek && prev.gap === next.gap) return;
+      metricsRef.current = next;
+      setMetrics(next);
+      setInstant(true);
     };
     read();
     const observer = new ResizeObserver(read);
@@ -110,15 +108,11 @@ export function Studio({
       posRef.current = next;
       setAnchor(next);
       setTrackPos(next);
-      setMotion(false);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setMotion(true));
-      });
+      setInstant(true);
       return;
     }
     busyRef.current = true;
     setBusy(true);
-    setMotion(true);
     setAnchor(from);
     posRef.current = dest;
     setTrackPos(dest);
@@ -131,13 +125,13 @@ export function Studio({
     if (settled !== pos) {
       posRef.current = settled;
       indexRef.current = settled;
-      setMotion(false);
+      setInstant(true);
       setAnchor(settled);
       setTrackPos(settled);
       setIndex(settled);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          setMotion(true);
+          setInstant(false);
           busyRef.current = false;
           setBusy(false);
         });
@@ -219,12 +213,11 @@ export function Studio({
           </button>
           <div className="track-viewport" ref={viewportRef}>
             <div
-              className="track"
+              className={instant ? "reel is-instant" : "reel"}
               onTransitionEnd={onTrackEnd}
               style={{
                 gap: metrics.gap,
                 transform: `translate3d(${metrics.peek - trackPos * step}px, 0, 0)`,
-                transition: motion ? `transform ${NAV_S}s ${SLIDE_EASE}` : "none",
                 pointerEvents: busy ? "none" : undefined,
               }}
             >
