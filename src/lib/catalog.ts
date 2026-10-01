@@ -71,7 +71,7 @@ const CHROME: Record<
     name: "Paparazzi Me",
     tagline: "Insert yourself into a paparazzi shot",
     runLabel: "Insert me",
-    views: ["Result", "Compare"],
+    views: ["Result"],
     kind: "paparazzi",
     empty: "Enter a celebrity and upload your face",
     images: [

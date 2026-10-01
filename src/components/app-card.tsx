@@ -551,13 +551,15 @@ export function AppCard({ app }: { app: CatalogApp }) {
         </div>
         <div className="main">
           <div className="toolbar">
-            <div className="seg" role="tablist" aria-label="Result view">
-              {app.views.map((name, index) => (
-                <button key={name} type="button" role="tab" aria-selected={view === index} className={view === index ? "on" : ""} onClick={() => setView(index)}>
-                  {name}
-                </button>
-              ))}
-            </div>
+            {app.views.length > 1 ? (
+              <div className="seg" role="tablist" aria-label="Result view">
+                {app.views.map((name, index) => (
+                  <button key={name} type="button" role="tab" aria-selected={view === index} className={view === index ? "on" : ""} onClick={() => setView(index)}>
+                    {name}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <span className="rmeta">{rmeta}</span>
             <span className="sp" />
             <button className="btn" type="button" disabled={!active || busy} onClick={() => void run()}>

@@ -92,7 +92,7 @@ export type CatalogApp = {
   icon: string;
   runLabel: string;
   endpoint: string;
-  views: [string, string];
+  views: string[];
   kind: "relight" | "upscale" | "sprite" | "tryon" | "cutout" | "swap" | "paparazzi";
   images: CatalogImage[];
   controls: ClientControl[];
