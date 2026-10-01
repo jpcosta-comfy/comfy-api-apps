@@ -362,7 +362,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
   const selectedScene = selectedToken ? `/api/paparazzi/scene?token=${encodeURIComponent(selectedToken)}` : "";
   const status = findingScene ? "Searching for a paparazzi photo" : statusLine(phase, progress, error, primaryUpload, active);
   const bar = phase === "idle" ? 0 : phase === "done" ? 1 : phase === "error" ? 0 : progress || (phase === "queued" ? 0.08 : 0.2);
-  const pillClass = phase === "running" || phase === "queued" ? "run" : phase === "done" ? "done" : "";
+  const pillClass = phase === "running" || phase === "queued" ? "run" : phase === "done" ? "done" : phase === "error" ? "err" : "";
   const pillText = findingScene
     ? "Searching"
     : phase === "queued"
