@@ -387,10 +387,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
         <span className={`icon${app.icon === "hanger" ? " hanger" : ""}`} aria-hidden>
           <AppIcon name={app.icon} />
         </span>
-        <div className="titles">
-          <div className="name">{app.name}</div>
-          {app.tagline ? <div className="tagline">{app.tagline}</div> : null}
-        </div>
+        {app.tagline ? <p className="tagline">{app.tagline}</p> : <span className="sp" />}
         <span className="chip endpoint" title={`POST ${app.endpoint}`}>
           <span className="m">POST</span>
           <span className="path">{app.endpoint}</span>
@@ -402,6 +399,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
       </header>
       <div className="body">
         <div className="panel">
+          <div className="panel-scroll">
           {app.controls
             .filter((control): control is TextControl => control.type === "text" && control.key === "celebrity")
             .map((control) => (
@@ -532,6 +530,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
               Seed <b>{seed ?? "—"}</b>
             </div>
           ) : null}
+          </div>
           <div className="need" role="status">
             {need}
           </div>

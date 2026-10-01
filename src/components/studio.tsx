@@ -15,7 +15,7 @@ export function Studio({
 }) {
   const [index, setIndex] = useState(0);
   const count = apps.length;
-  const countWord = COUNT_WORDS[count] ?? String(count);
+  const current = apps[index];
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -44,10 +44,8 @@ export function Studio({
       </header>
       <main className="page">
         <div className="hero">
-          <h1>Use it anywhere</h1>
-          <p>
-            {countWord} {count === 1 ? "app" : "apps"} on the Comfy Cloud API. Any image you upload.
-          </p>
+          <h1>{current?.name}</h1>
+          <p>Fun apps powered by ComfyUI</p>
         </div>
         {!mock && !configured ? (
           <p className="warn">Set COMFY_API_KEY or COMFY_CLOUD_API_KEY on the server to run live jobs, or COMFY_MOCK=1 for sample output.</p>
@@ -107,5 +105,3 @@ export function Studio({
     </div>
   );
 }
-
-const COUNT_WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
