@@ -139,6 +139,7 @@ a { color: inherit; }
   letter-spacing: -0.045em;
   line-height: 1.02;
   color: var(--ink);
+  transition: none;
 }
 .hero p {
   margin: 6px auto 0;
@@ -220,16 +221,53 @@ a { color: inherit; }
   line-height: 1;
   padding: 0;
 }
-.nav-arrow.prev { left: -22px; }
-.nav-arrow.next { right: -22px; }
+.nav-arrow.prev { left: -40px; }
+.nav-arrow.next { right: -40px; }
+.peek-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 4;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.peek-zone.prev { left: 0; }
+.peek-zone.next { right: 0; }
 .nav-arrow:hover { background: #faf8fc; }
+.track-viewport {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.track {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  will-change: transform;
+}
 .stage {
   display: flex;
   flex-direction: column;
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+  position: relative;
+  transition: none;
+}
+.stage-body {
+  display: flex;
+  flex-direction: column;
   flex: 1;
+  min-width: 0;
   min-height: 0;
 }
-.stage[hidden] { display: none; }
 .card {
   background: var(--paper);
   border-radius: 28px;
@@ -833,7 +871,10 @@ button.run .label { position: relative; }
   .header-nav button { flex: none; }
   .nav-arrow { display: none; }
   .stage-wrap { display: block; flex: none; position: static; }
-  .stage { display: block; flex: none; height: auto; }
+  .track-viewport { display: block; height: auto; flex: none; overflow: hidden; }
+  .track { height: auto; flex: none; align-items: flex-start; }
+  .stage { display: block; height: auto; align-self: auto; }
+  .stage-body { display: block; height: auto; flex: none; }
   .card { height: auto; flex: none; padding: 14px; border-radius: 22px; position: relative; z-index: 1; }
   .body { display: grid; grid-template-columns: 1fr; }
   .panel, .panel-scroll { overflow: visible; flex: none; min-height: auto; }
