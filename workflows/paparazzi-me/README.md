@@ -18,4 +18,6 @@ Celebrity / paparazzi scene photo + the user's face -> the user standing in that
 App parameters: the insert prompt and seed go to node 35. Resolution is optional and also goes to node 35.
 **Partner node:** requires `extra_data.api_key_comfy_org`; consumes credits.
 
-The celebrity **name** field in the carousel is a Path A stub. Comfy cannot search the web for a photo. v1 requires the scene upload. A later site-side fetch (with licensing care) can turn a name into the scene image; it is not sent to this workflow.
+The celebrity **name** is search input for the site, not a workflow field. `GET /api/paparazzi/search` returns paparazzi photo candidates. The run downloads the selected photo, or the best match when the user does not pick one, and uploads it as node 11. The selfie is still node 12. A scene file skips search. Comfy does not search the web.
+
+With no search key, the server uses DuckDuckGo image results. Set `SERPAPI_API_KEY`, or both `GOOGLE_CSE_API_KEY` and `GOOGLE_CSE_CX`, or `BING_IMAGE_SEARCH_KEY` to use that provider instead (SerpAPI, then Google, then Bing).

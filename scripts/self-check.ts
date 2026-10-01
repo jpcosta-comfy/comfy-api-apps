@@ -18,6 +18,19 @@ import { prepareImage } from "../src/lib/images";
 import { saveMockJob, renderMockOutput } from "../src/lib/mock";
 import { buildPrompt, intensityWord } from "../src/lib/prompts";
 import { signAssetId, verifyAssetSignature } from "../src/lib/signing";
+import { assertPublicImageUrl } from "../src/lib/fetch-image";
+import {
+  activeSearchProvider,
+  noResultsMessage,
+  normalizeCelebrityName,
+  parseBing,
+  parseDuckDuckGo,
+  parseGoogleCse,
+  parseSerpApi,
+  selectCelebrityHits,
+  type SearchHit,
+} from "../src/lib/paparazzi-search";
+import { readSceneChoice, signSceneChoice } from "../src/lib/scene-token";
 import { buildJobBody, redactJobBody } from "../src/lib/workflow";
 
 process.chdir(path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."));
@@ -71,15 +84,19 @@ assert.equal(paparazziCatalog?.name, "Paparazzi Me");
 assert.equal(paparazziCatalog?.tagline, "Insert yourself into a paparazzi shot");
 assert.equal(paparazziCatalog?.kind, "paparazzi");
 assert.equal(paparazziCatalog?.runLabel, "Insert me");
+assert.equal(paparazziCatalog?.empty, "Enter a celebrity and upload your face");
 assert.deepEqual(
   paparazziCatalog?.images.map((image) => image.key),
-  ["scene", "user"],
+  ["user", "scene"],
 );
-assert.equal(paparazziCatalog?.images.every((image) => !image.optional), true);
+assert.equal(paparazziCatalog?.images.find((image) => image.key === "user")?.optional, false);
+assert.equal(paparazziCatalog?.images.find((image) => image.key === "scene")?.optional, true);
+assert.equal(paparazziCatalog?.images.find((image) => image.key === "scene")?.label, "Scene override");
 assert.equal(paparazziCatalog?.hasSeed, true);
 const celebrity = paparazziCatalog?.controls.find((control) => control.key === "celebrity");
 assert.equal(celebrity?.type, "text");
-assert.equal(celebrity && "clientOnly" in celebrity ? celebrity.clientOnly : false, true);
+assert.equal(celebrity && celebrity.type === "text" ? celebrity.multiline : true, false);
+assert.equal(celebrity && "clientOnly" in celebrity ? celebrity.clientOnly : false, false);
 assert.equal(paparazziCatalog?.controls.some((control) => control.key === "resolution"), true);
 assert.equal(getApp("paparazzi-me")?.enabled, true);
 assert.equal(getApp("paparazzi-me")?.partnerNodes, true);
@@ -427,6 +444,113 @@ const paparazziJob = await saveMockJob(
 );
 const paparazziPng = await renderMockOutput(paparazziJob.outputId, undefined);
 assert.ok(paparazziPng.byteLength > 100);
+
+assert.equal(normalizeCelebrityName("  Zendaya  "), "Zendaya");
+assert.throws(() => normalizeCelebrityName("https://example.com"), /celebrity name/i);
+assert.equal(noResultsMessage("Zendaya"), "No paparazzi photos found for “Zendaya”. Try another spelling, or upload a scene photo.");
+const ranked = selectCelebrityHits("Zendaya", [
+  {
+    title: "Zendaya poster art",
+    imageUrl: "https://cdn.example.com/poster.jpg",
+    thumbUrl: "https://cdn.example.com/poster-t.jpg",
+    pageUrl: "https://example.com/poster",
+    width: 2000,
+    height: 1200,
+    source: "example.com",
+  },
+  {
+    title: "Zendaya candid paparazzi",
+    imageUrl: "https://cdn.example.com/candid.jpg",
+    thumbUrl: "https://cdn.example.com/candid-t.jpg",
+    pageUrl: "https://example.com/candid",
+    width: 1200,
+    height: 1600,
+    source: "example.com",
+  },
+  {
+    title: "Unrelated cat",
+    imageUrl: "https://cdn.example.com/cat.jpg",
+    thumbUrl: "https://cdn.example.com/cat-t.jpg",
+    pageUrl: "https://example.com/cat",
+    width: 1200,
+    height: 1600,
+    source: "example.com",
+  },
+  {
+    title: "Zendaya paparazzi",
+    imageUrl: "http://cdn.example.com/insecure.jpg",
+    thumbUrl: "https://cdn.example.com/insecure-t.jpg",
+    pageUrl: "https://example.com/insecure",
+    width: 1200,
+    height: 1600,
+    source: "example.com",
+  },
+]);
+assert.equal(ranked[0]?.title, "Zendaya candid paparazzi");
+assert.equal(ranked.some((hit) => hit.title.includes("cat")), false);
+assert.equal(ranked.some((hit) => hit.imageUrl.startsWith("http://")), false);
+assert.deepEqual(
+  parseDuckDuckGo({
+    results: [
+      {
+        title: "Zendaya <b>paparazzi</b>",
+        image: "https://cdn.example.com/a.jpg",
+        thumbnail: "https://tse.mm.bing.net/th/a",
+        url: "https://photos.example.com/p",
+        width: 1200,
+        height: 1600,
+      },
+    ],
+  }).map((hit: SearchHit) => hit.source),
+  ["photos.example.com"],
+);
+assert.equal(parseSerpApi({ images_results: [{ title: "A", original: "https://cdn.example.com/a.jpg", source: "example.com" }] })[0]?.imageUrl, "https://cdn.example.com/a.jpg");
+assert.equal(
+  parseGoogleCse({
+    items: [{ title: "A", link: "https://cdn.example.com/a.jpg", displayLink: "example.com", image: { thumbnailLink: "https://cdn.example.com/t.jpg", width: 10, height: 20 } }],
+  })[0]?.thumbUrl,
+  "https://cdn.example.com/t.jpg",
+);
+assert.equal(parseBing({ value: [{ name: "A", contentUrl: "https://cdn.example.com/a.jpg", thumbnailUrl: "https://cdn.example.com/t.jpg", width: 8, height: 9 }] })[0]?.width, 8);
+assert.equal(parseDuckDuckGo({}).length, 0);
+
+const savedSearchEnv = {
+  SERPAPI_API_KEY: process.env.SERPAPI_API_KEY,
+  GOOGLE_CSE_API_KEY: process.env.GOOGLE_CSE_API_KEY,
+  GOOGLE_CSE_CX: process.env.GOOGLE_CSE_CX,
+  BING_IMAGE_SEARCH_KEY: process.env.BING_IMAGE_SEARCH_KEY,
+};
+delete process.env.SERPAPI_API_KEY;
+delete process.env.GOOGLE_CSE_API_KEY;
+delete process.env.GOOGLE_CSE_CX;
+delete process.env.BING_IMAGE_SEARCH_KEY;
+assert.equal(activeSearchProvider(), "duckduckgo");
+process.env.BING_IMAGE_SEARCH_KEY = "bing-key";
+assert.equal(activeSearchProvider(), "bing");
+process.env.GOOGLE_CSE_API_KEY = "google-key";
+assert.throws(() => activeSearchProvider(), /GOOGLE_CSE_CX/);
+process.env.GOOGLE_CSE_CX = "cx";
+assert.equal(activeSearchProvider(), "google-cse");
+process.env.SERPAPI_API_KEY = "serp-key";
+assert.equal(activeSearchProvider(), "serpapi");
+for (const [name, value] of Object.entries(savedSearchEnv)) {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
+
+assert.throws(() => assertPublicImageUrl("http://cdn.example.com/a.jpg"), /not allowed/);
+assert.throws(() => assertPublicImageUrl("https://127.0.0.1/a.jpg"), /not allowed/);
+assert.throws(() => assertPublicImageUrl("https://169.254.169.254/latest"), /not allowed/);
+assert.throws(() => assertPublicImageUrl("https://user:pass@cdn.example.com/a.jpg"), /not allowed/);
+assert.equal(assertPublicImageUrl("https://cdn.example.com/a.jpg").hostname, "cdn.example.com");
+const sceneToken = signSceneChoice({
+  imageUrl: "https://cdn.example.com/a.jpg",
+  thumbUrl: "https://cdn.example.com/t.jpg",
+  source: "example.com",
+});
+assert.equal(readSceneChoice(sceneToken).imageUrl, "https://cdn.example.com/a.jpg");
+assert.throws(() => readSceneChoice(`${sceneToken}x`), /not valid/);
+assert.throws(() => signSceneChoice({ imageUrl: "https://127.0.0.1/a.jpg", thumbUrl: "https://cdn.example.com/t.jpg", source: "local" }), /not allowed/);
 
 const cutJob = await saveMockJob(cutout, "background-removal", {}, { image: sample });
 const cutPng = await renderMockOutput(cutJob.outputId, undefined);

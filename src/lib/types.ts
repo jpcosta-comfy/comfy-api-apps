@@ -66,6 +66,8 @@ export type TextControl = {
   label: string;
   placeholder: string;
   default: string;
+  /** Single-line input. Textareas are the default. */
+  multiline?: boolean;
   optional?: boolean;
   hint?: string;
   clientOnly?: boolean;

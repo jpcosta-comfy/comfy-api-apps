@@ -5,6 +5,7 @@ import { apiKey, isMockMode, missingKeyMessage } from "@/lib/env";
 import { errorResponse, AppError } from "@/lib/http";
 import { publicRouteId } from "@/lib/ids";
 import { prepareImage } from "@/lib/images";
+import { resolvePaparazziScene } from "@/lib/paparazzi-scene";
 import { saveMockJob } from "@/lib/mock";
 import { parseRunParams } from "@/lib/params";
 import { buildJobBody, filePathFor, redactJobBody, type UploadedAsset } from "@/lib/workflow";
@@ -31,9 +32,18 @@ export async function POST(request: Request, context: { params: Promise<{ app: s
       const entry = form.get(role);
       if (!(entry instanceof File) || entry.size === 0) {
         if (spec.optional) continue;
+        if (appId === "paparazzi-me" && role === "scene") continue;
+        if (appId === "paparazzi-me" && role === "user") {
+          throw new AppError(400, "invalid_input", "Upload your face.");
+        }
         throw new AppError(400, "invalid_input", "Upload the required image.");
       }
       files[role] = await prepareImage(entry, spec.maxSide);
+    }
+    if (appId === "paparazzi-me" && !files.scene) {
+      const scene = app.imageInputs.scene;
+      if (!scene) throw new AppError(500, "internal", "Paparazzi Me is missing its scene input.");
+      files.scene = await resolvePaparazziScene(form, scene.maxSide);
     }
 
     const params = parseRunParams(app, form, Boolean(files.image));

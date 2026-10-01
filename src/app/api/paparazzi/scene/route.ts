@@ -1,0 +1,40 @@
+import { downloadPublicImage } from "@/lib/fetch-image";
+import { errorResponse, AppError } from "@/lib/http";
+import { contentTypeFor, sniffImage } from "@/lib/images";
+import { readSceneChoice } from "@/lib/scene-token";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
+export async function GET(request: Request) {
+  try {
+    const url = new URL(request.url);
+    const choice = readSceneChoice(url.searchParams.get("token") ?? "");
+    const full = url.searchParams.get("size") === "full";
+    let buf: Buffer;
+    try {
+      buf = await downloadPublicImage(full ? choice.imageUrl : choice.thumbUrl || choice.imageUrl);
+    } catch (error) {
+      if (full || choice.thumbUrl === choice.imageUrl) throw error;
+      try {
+        buf = await downloadPublicImage(choice.imageUrl);
+      } catch {
+        if (error instanceof AppError) throw error;
+        throw new AppError(502, "scene_download_failed", "Could not download that photo.");
+      }
+    }
+    const kind = sniffImage(buf);
+    if (!kind) throw new AppError(502, "scene_download_failed", "That photo was not a PNG, JPG, or WebP image.");
+    return new Response(buf, {
+      headers: {
+        "Content-Type": contentTypeFor(kind),
+        "Content-Length": String(buf.byteLength),
+        "Cache-Control": "private, max-age=300",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}

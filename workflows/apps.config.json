@@ -108,7 +108,7 @@
         "resolution": { "node": "35", "input": "resolution", "default": "2K" }
       },
       "promptTemplate": "Create a realistic paparazzi-style photograph. Image 1 is the celebrity/paparazzi scene reference — keep the same location, background, camera angle, flash lighting, grain, and candid paparazzi vibe. Image 2 is the user — reproduce their face and identity EXACTLY (facial features, skin tone, hair). Insert the person from image 2 into the scene from image 1 so they appear together with the celebrity (standing beside or near them, same depth of field, matching shadows and flash highlights). Keep clothing on the user natural for the scene unless image 2 already shows appropriate attire. Photorealistic paparazzi photojournalism look: harsh on-camera flash, slight motion, nightlife/event energy. Do not change the celebrity's face. No text overlays, no watermarks, no logos.",
-      "notes": "Celebrity name is a site-side Path A stub. v1 requires the scene upload; the name is not sent to the workflow.",
+      "notes": "Celebrity name is site-side search only and is not sent to the workflow. A scene file overrides search. The downloaded scene still goes to node 11 and the selfie to node 12.",
       "output": { "node": "30" }
     },
     "background-removal": {

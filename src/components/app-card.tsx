@@ -4,8 +4,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { BackgroundValue, FormatValue } from "@/lib/choices";
 import { downloadBlob, exportCutout } from "@/lib/composite";
 import { randomSeed, shrinkForUpload } from "@/lib/prepare-image";
-import { LILAC, TERMINAL_STATUSES, type CatalogApp, type JobView, type RunResponse } from "@/lib/types";
+import { LILAC, TERMINAL_STATUSES, type CatalogApp, type JobView, type RunResponse, type TextControl } from "@/lib/types";
 import { AppIcon } from "@/components/app-icon";
+
+type SceneCandidate = {
+  token: string;
+  title: string;
+  source: string;
+  width: number;
+  height: number;
+};
 
 type UploadState = {
   file: File;
@@ -61,6 +69,11 @@ export function AppCard({ app }: { app: CatalogApp }) {
   const [compare, setCompare] = useState(50);
   const [toast, setToast] = useState<string | null>(null);
   const [hot, setHot] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<SceneCandidate[]>([]);
+  const [selectedToken, setSelectedToken] = useState<string | null>(null);
+  const [searchProvider, setSearchProvider] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [findingScene, setFindingScene] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [previewWidth, setPreviewWidth] = useState(640);
@@ -90,6 +103,48 @@ export function AppCard({ app }: { app: CatalogApp }) {
 
   function setControl(key: string, value: string) {
     setValues((current) => ({ ...current, [key]: value }));
+    if (key === "celebrity") {
+      setCandidates([]);
+      setSelectedToken(null);
+      setSearchProvider("");
+      setNeed(null);
+    }
+  }
+
+  async function findPhotos() {
+    if (app.kind !== "paparazzi" || searching || busy) return;
+    const name = controlValue(values, "celebrity").trim();
+    if (name.length < 2) {
+      setNeed("Enter a celebrity name.");
+      return;
+    }
+    setSearching(true);
+    setNeed(null);
+    setError(null);
+    try {
+      const response = await fetch(`/api/paparazzi/search?q=${encodeURIComponent(name)}`);
+      const payload = (await response.json()) as {
+        provider?: string;
+        candidates?: SceneCandidate[];
+        error?: { message?: string };
+      };
+      if (!response.ok) {
+        setCandidates([]);
+        setSelectedToken(null);
+        setSearchProvider("");
+        setNeed(payload.error?.message || "Image search failed.");
+        return;
+      }
+      const next = payload.candidates ?? [];
+      setSearchProvider(payload.provider ?? "");
+      setCandidates(next);
+      setSelectedToken(next[0]?.token ?? null);
+      if (next.length === 0) setNeed("No paparazzi photos found. Try another spelling, or upload a scene photo.");
+    } catch {
+      setNeed("Image search is unavailable right now. Try again or upload a scene photo.");
+    } finally {
+      setSearching(false);
+    }
   }
 
   async function takeFile(role: string, file: File | undefined) {
@@ -118,11 +173,16 @@ export function AppCard({ app }: { app: CatalogApp }) {
   }
 
   function missingMessage(): string | null {
+    if (app.kind === "paparazzi") {
+      if (!uploads.user) return "Upload your face.";
+      const name = controlValue(values, "celebrity").trim();
+      if (!uploads.scene && !selectedToken && name.length < 2) return "Enter a celebrity name or upload a scene photo.";
+      return null;
+    }
     for (const image of app.images) {
       if (!image.optional && !uploads[image.key]) {
         if (app.kind === "tryon") return "Upload a person and a garment.";
         if (app.kind === "swap") return "Upload a hand photo and a product.";
-        if (app.kind === "paparazzi") return "Upload a paparazzi scene and your face.";
         if (app.kind === "sprite") return "Upload a character image.";
         return "Upload an image first.";
       }
@@ -166,6 +226,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
     setSeed(nextSeed);
     setPhase("queued");
     setProgress(0);
+    setFindingScene(app.kind === "paparazzi" && !uploads.scene);
 
     const controller = new AbortController();
     abortRef.current?.abort();
@@ -185,8 +246,10 @@ export function AppCard({ app }: { app: CatalogApp }) {
         form.append("frames", Object.keys(app.grids)[0] ?? "8");
       }
       if (nextSeed !== null) form.append("seed", String(nextSeed));
+      if (app.kind === "paparazzi" && !uploads.scene && selectedToken) form.append("sceneToken", selectedToken);
 
       const response = await fetch(app.endpoint, { method: "POST", body: form, signal: controller.signal });
+      setFindingScene(false);
       const payload = (await response.json()) as RunResponse & { error?: { message?: string } };
       if (!response.ok) throw new Error(payload.error?.message || "The run failed.");
 
@@ -248,6 +311,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
       setPhase("done");
       setProgress(1);
     } catch (err) {
+      setFindingScene(false);
       if (controller.signal.aborted) return;
       setPhase("error");
       setError(err instanceof Error ? err.message : "The run failed.");
@@ -295,11 +359,21 @@ export function AppCard({ app }: { app: CatalogApp }) {
   const showSprite = view === 1 && app.kind === "sprite" && active;
   const grid = app.grids?.[active?.frames || Object.keys(app.grids ?? {})[0] || "8"] ?? { cols: 4, rows: 2 };
 
-  const status = statusLine(phase, progress, error, primaryUpload, active);
+  const selectedScene = selectedToken ? `/api/paparazzi/scene?token=${encodeURIComponent(selectedToken)}` : "";
+  const status = findingScene ? "Searching for a paparazzi photo" : statusLine(phase, progress, error, primaryUpload, active);
   const bar = phase === "idle" ? 0 : phase === "done" ? 1 : phase === "error" ? 0 : progress || (phase === "queued" ? 0.08 : 0.2);
   const pillClass = phase === "running" || phase === "queued" ? "run" : phase === "done" ? "done" : "";
-  const pillText =
-    phase === "queued" ? "Queued" : phase === "running" ? `Running ${Math.round(progress * 100)}%` : phase === "done" ? "Done" : phase === "error" ? "Error" : "Idle";
+  const pillText = findingScene
+    ? "Searching"
+    : phase === "queued"
+      ? "Queued"
+      : phase === "running"
+        ? `Running ${Math.round(progress * 100)}%`
+        : phase === "done"
+          ? "Done"
+          : phase === "error"
+            ? "Error"
+            : "Idle";
 
   const rmeta = active
     ? app.kind === "upscale"
@@ -328,18 +402,58 @@ export function AppCard({ app }: { app: CatalogApp }) {
       </header>
       <div className="body">
         <div className="panel">
-          {app.images.map((image) => (
-            <UploadField
-              key={image.key}
-              label={image.label}
-              optional={image.optional}
-              upload={uploads[image.key]}
-              hot={hot === image.key}
-              onFile={(file) => void takeFile(image.key, file)}
-              onHot={(on) => setHot(on ? image.key : null)}
-            />
-          ))}
-          {app.controls.map((control) => (
+          {app.controls
+            .filter((control): control is TextControl => control.type === "text" && control.key === "celebrity")
+            .map((control) => (
+              <ControlField
+                key={control.key}
+                control={control}
+                value={controlValue(values, control.key)}
+                searching={searching}
+                onChange={(next) => setControl(control.key, next)}
+                onFind={() => void findPhotos()}
+              />
+            ))}
+          {candidates.length > 0 ? (
+            <div>
+              <div className="lab">
+                Scenes
+                <b>{searchProvider ? `from ${searchProvider}` : "pick one"}</b>
+              </div>
+              <div className="scene-pick" role="listbox" aria-label="Paparazzi scenes">
+                {candidates.map((candidate) => (
+                  <button
+                    key={candidate.token}
+                    type="button"
+                    role="option"
+                    aria-selected={candidate.token === selectedToken}
+                    className={candidate.token === selectedToken ? "on" : ""}
+                    title={candidate.title}
+                    onClick={() => setSelectedToken(candidate.token)}
+                  >
+                    <img src={`/api/paparazzi/scene?token=${encodeURIComponent(candidate.token)}`} alt="" />
+                  </button>
+                ))}
+              </div>
+              <p className="field-note">The first scene is used unless you pick another. An uploaded scene overrides this.</p>
+            </div>
+          ) : null}
+          {app.images
+            .filter((image) => image.key !== "scene")
+            .map((image) => (
+              <UploadField
+                key={image.key}
+                label={image.label}
+                optional={image.optional}
+                upload={uploads[image.key]}
+                hot={hot === image.key}
+                onFile={(file) => void takeFile(image.key, file)}
+                onHot={(on) => setHot(on ? image.key : null)}
+              />
+            ))}
+          {app.controls
+            .filter((control) => control.key !== "celebrity")
+            .map((control) => (
             <div key={control.key}>
               <div className="lab">
                 {control.label}
@@ -400,6 +514,19 @@ export function AppCard({ app }: { app: CatalogApp }) {
               ) : null}
             </div>
           ))}
+          {app.images
+            .filter((image) => image.key === "scene")
+            .map((image) => (
+              <UploadField
+                key={image.key}
+                label={image.label}
+                optional={image.optional}
+                upload={uploads[image.key]}
+                hot={hot === image.key}
+                onFile={(file) => void takeFile(image.key, file)}
+                onHot={(on) => setHot(on ? image.key : null)}
+              />
+            ))}
           {app.hasSeed ? (
             <div className="seedline">
               Seed <b>{seed ?? "—"}</b>
@@ -408,10 +535,10 @@ export function AppCard({ app }: { app: CatalogApp }) {
           <div className="need" role="status">
             {need}
           </div>
-          <button className="run" type="button" onClick={() => void run()} disabled={busy}>
+          <button className="run" type="button" onClick={() => void run()} disabled={busy || searching}>
             <span className="label">
               {busy ? (
-                phase === "queued" ? "Queued…" : "Running…"
+                findingScene ? "Searching…" : phase === "queued" ? "Queued…" : "Running…"
               ) : active ? (
                 "↻ Run again"
               ) : (
@@ -443,7 +570,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
             </button>
           </div>
           <div className={`preview ${checker ? "checker" : ""}`} ref={previewRef} style={stageStyle}>
-            {!active && !app.images.some((image) => uploads[image.key]) ? (
+            {!active && !app.images.some((image) => uploads[image.key]) && !selectedScene ? (
               <div className="pv-empty">
                 <div className="big">✦</div>
                 {app.empty}
@@ -457,6 +584,11 @@ export function AppCard({ app }: { app: CatalogApp }) {
             {!active && primaryUpload ? (
               <div className="shot-wrap">
                 <img className="shot" src={primaryUpload.url} alt="Uploaded image" />
+              </div>
+            ) : null}
+            {!active && !primaryUpload && selectedScene ? (
+              <div className="shot-wrap">
+                <img className="shot" src={selectedScene} alt="Selected paparazzi scene" />
               </div>
             ) : null}
             {showCompare ? (
@@ -540,6 +672,46 @@ function measureBlob(url: string): Promise<{ width: number; height: number }> {
     img.onerror = () => resolve({ width: 0, height: 0 });
     img.src = url;
   });
+}
+
+function ControlField({
+  control,
+  value,
+  searching,
+  onChange,
+  onFind,
+}: {
+  control: TextControl;
+  value: string;
+  searching: boolean;
+  onChange: (value: string) => void;
+  onFind: () => void;
+}) {
+  return (
+    <div>
+      <div className="lab">{control.label}</div>
+      <div className="find-row">
+        <input
+          className="text"
+          placeholder={control.placeholder}
+          value={value}
+          aria-label={control.label}
+          maxLength={80}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              onFind();
+            }
+          }}
+        />
+        <button className="btn dark" type="button" onClick={onFind} disabled={searching}>
+          {searching ? "Searching…" : "Find photos"}
+        </button>
+      </div>
+      {control.hint ? <p className="field-note">{control.hint}</p> : null}
+    </div>
+  );
 }
 
 function UploadField({

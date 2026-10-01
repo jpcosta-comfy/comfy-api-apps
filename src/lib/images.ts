@@ -31,15 +31,9 @@ export function contentTypeFor(kind: "png" | "jpeg" | "webp" | "bin"): string {
   return "application/octet-stream";
 }
 
-export async function prepareImage(file: File, maxSide: number): Promise<Buffer> {
-  if (!(file instanceof File) || file.size <= 0) bad("Upload an image.");
-  if (file.size > MAX_BYTES) bad("Image must be 15 MB or smaller.");
-  const declared = file.type;
-  if (declared && !["image/png", "image/jpeg", "image/webp", "image/jpg"].includes(declared)) {
-    bad("Use a PNG, JPG, or WebP image.");
-  }
-
-  const buf = Buffer.from(await file.arrayBuffer());
+export async function prepareImageBuffer(buf: Buffer, maxSide: number): Promise<Buffer> {
+  if (buf.length <= 0) bad("Upload an image.");
+  if (buf.length > MAX_BYTES) bad("Image must be 15 MB or smaller.");
   if (!sniffImage(buf)) bad("That file is not a PNG, JPG, or WebP image.");
 
   try {
@@ -61,4 +55,14 @@ export async function prepareImage(file: File, maxSide: number): Promise<Buffer>
     if (error instanceof AppError) throw error;
     bad("Could not read that image.");
   }
+}
+
+export async function prepareImage(file: File, maxSide: number): Promise<Buffer> {
+  if (!(file instanceof File) || file.size <= 0) bad("Upload an image.");
+  if (file.size > MAX_BYTES) bad("Image must be 15 MB or smaller.");
+  const declared = file.type;
+  if (declared && !["image/png", "image/jpeg", "image/webp", "image/jpg"].includes(declared)) {
+    bad("Use a PNG, JPG, or WebP image.");
+  }
+  return prepareImageBuffer(Buffer.from(await file.arrayBuffer()), maxSide);
 }

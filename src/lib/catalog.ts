@@ -11,7 +11,7 @@ import type { CatalogApp, ClientControl, SpriteGrid } from "@/lib/types";
 const CHROME: Record<
   string,
   Pick<CatalogApp, "name" | "icon" | "runLabel" | "views" | "kind" | "empty" | "tagline"> & {
-    images: { key: string; label: string }[];
+    images: { key: string; label: string; optional?: boolean }[];
   }
 > = {
   "product-relight": {
@@ -73,10 +73,10 @@ const CHROME: Record<
     runLabel: "Insert me",
     views: ["Result", "Compare"],
     kind: "paparazzi",
-    empty: "Upload a scene and your face",
+    empty: "Enter a celebrity and upload your face",
     images: [
-      { key: "scene", label: "Scene" },
       { key: "user", label: "Your face" },
+      { key: "scene", label: "Scene override", optional: true },
     ],
   },
   "background-removal": {
@@ -198,12 +198,11 @@ function controlsFor(id: string, app: AppConfig): ClientControl[] {
       {
         type: "text",
         key: "celebrity",
-        label: "Celebrity name",
+        label: "Celebrity",
         placeholder: "e.g. Zendaya",
         default: "",
-        optional: true,
-        clientOnly: true,
-        hint: "Name search isn't available yet. Upload a scene photo to run.",
+        multiline: false,
+        hint: "We'll look up a paparazzi photo. Upload a scene below to use your own.",
       },
       ...(app.params.resolution
         ? [
@@ -250,7 +249,7 @@ export function buildCatalog(): CatalogApp[] {
     }
     const images = chrome.images.map((image) => ({
       ...image,
-      optional: Boolean(app.imageInputs[image.key]?.optional),
+      optional: Boolean(image.optional || app.imageInputs[image.key]?.optional),
     }));
     const grids = app.grids
       ? Object.fromEntries(Object.entries(app.grids).map(([frames, label]) => [frames, parseGrid(label)]))
