@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { buildAssetForm } from "../src/lib/comfy";
+import { getBoxPreset, insertPixels } from "../src/lib/box-presets";
 import { buildCatalog } from "../src/lib/catalog";
 import { getApp, listAppIds, listVisibleAppIds, type AppConfig } from "../src/lib/config";
 import {
@@ -10,9 +11,10 @@ import {
   deploymentEnvName,
   deploymentFailureMessage,
   deploymentTarget,
+  getDeployment,
   listDeploymentSlugs,
 } from "../src/lib/deployments";
-import { apiKey } from "../src/lib/env";
+import { apiKey, missingKeyMessage } from "../src/lib/env";
 import { parsePublicRouteId, publicRouteId } from "../src/lib/ids";
 import { prepareImage } from "../src/lib/images";
 import { saveMockJob, renderMockOutput } from "../src/lib/mock";
@@ -51,6 +53,8 @@ const EXPECTED_ENDPOINTS: Record<string, string> = {
   "virtual-try-on": "https://dep-d99a045a-86e9-4251-bbae-0a88940f78d1.run.comfy.app",
   "hand-product-swap": "https://dep-9a807afc-d80c-43de-adc4-d0eee9a73655.run.comfy.app",
   "paparazzi-me": "https://dep-be6a6286-e47c-4e0f-b9fc-8fad55236367.run.comfy.app",
+  "open-product-swap": "https://dep-c6eae195-e598-4f43-8928-00cb4aa3c2d7.run.comfy.app",
+  "open-unboxing": "https://dep-727f285f-f3d8-4348-8378-eacd314ebb58.run.comfy.app",
 };
 
 const deploymentEnvNames = Object.keys(EXPECTED_ENDPOINTS).map(deploymentEnvName);
@@ -66,10 +70,20 @@ assert.deepEqual(listVisibleAppIds(), [
   "hand-product-swap",
   "paparazzi-me",
   "background-removal",
+  "open-product-swap",
+  "open-unboxing",
 ]);
 assert.deepEqual(
   buildCatalog().map((app) => app.id),
-  ["sprite-generator", "virtual-try-on", "hand-product-swap", "paparazzi-me", "background-removal"],
+  [
+    "sprite-generator",
+    "virtual-try-on",
+    "hand-product-swap",
+    "paparazzi-me",
+    "background-removal",
+    "open-product-swap",
+    "open-unboxing",
+  ],
 );
 const swapCatalog = buildCatalog().find((app) => app.id === "hand-product-swap");
 assert.equal(swapCatalog?.name, "Hand product swap");
@@ -80,7 +94,33 @@ assert.deepEqual(
   ["hand", "product"],
 );
 assert.equal(swapCatalog?.hasSeed, true);
+assert.equal(swapCatalog?.output, "image");
+assert.equal(swapCatalog?.pollMs, 8 * 60 * 1000);
 assert.equal(swapCatalog?.controls.some((control) => control.key === "resolution"), true);
+const openSwapCatalog = buildCatalog().find((app) => app.id === "open-product-swap");
+assert.equal(openSwapCatalog?.name, "Open Product Swap");
+assert.equal(openSwapCatalog?.kind, "product-swap");
+assert.equal(openSwapCatalog?.output, "video");
+assert.equal(openSwapCatalog?.pollMs, 15 * 60 * 1000);
+assert.equal(openSwapCatalog?.images.find((image) => image.key === "video")?.accept, "video");
+assert.deepEqual(
+  openSwapCatalog?.images.map((image) => image.key),
+  ["video", "product"],
+);
+const openSwapNote = openSwapCatalog?.controls.find((control) => control.key === "description");
+assert.equal(openSwapNote?.type, "text");
+assert.equal(openSwapNote && openSwapNote.type === "text" ? openSwapNote.multiline : true, false);
+assert.equal(openSwapCatalog?.controls.some((control) => control.key === "videoSize"), true);
+const unboxingCatalog = buildCatalog().find((app) => app.id === "open-unboxing");
+assert.equal(unboxingCatalog?.name, "Open Unboxing");
+assert.equal(unboxingCatalog?.kind, "unboxing");
+assert.equal(unboxingCatalog?.output, "video");
+assert.equal(unboxingCatalog?.pollMs, 15 * 60 * 1000);
+assert.equal(unboxingCatalog?.images[0]?.multiple, true);
+assert.equal(unboxingCatalog?.images[0]?.maxCount, 5);
+const boxControl = unboxingCatalog?.controls.find((control) => control.key === "box");
+assert.equal(boxControl?.type, "cards");
+assert.equal(boxControl && boxControl.type === "cards" ? boxControl.options.length : 0, 3);
 const paparazziCatalog = buildCatalog().find((app) => app.id === "paparazzi-me");
 assert.equal(paparazziCatalog?.name, "Paparazzi Me");
 assert.equal(paparazziCatalog?.tagline, "Insert yourself into a paparazzi shot");
@@ -105,6 +145,14 @@ assert.equal(getApp("paparazzi-me")?.partnerNodes, true);
 assert.equal(getApp("product-relight")?.enabled, false);
 assert.equal(getApp("image-upscaler")?.enabled, false);
 assert.equal(getApp("sprite-generator")?.enabled, true);
+assert.equal(getApp("open-product-swap")?.enabled, true);
+assert.equal(getApp("open-unboxing")?.enabled, true);
+assert.equal(getApp("open-unboxing")?.partnerNodes, true);
+assert.equal(getDeployment("open-product-swap")?.keyEnv, "COMFY_API_KEY_WORK_PERSONAL");
+assert.equal(getDeployment("open-unboxing")?.keyEnv, "COMFY_API_KEY_WORK_PERSONAL");
+assert.equal(getDeployment("open-unboxing")?.releaseId, "pending");
+assert.equal(getDeployment("hand-product-swap")?.keyEnv, undefined);
+assert.equal(getDeployment("open-product-swap")?.releaseId, "f709c8b1-b6a6-49c3-980b-114a03f160ba");
 assert.deepEqual([...listDeploymentSlugs()].sort(), Object.keys(EXPECTED_ENDPOINTS).sort());
 for (const [slug, url] of Object.entries(EXPECTED_ENDPOINTS)) {
   assert.equal(deploymentEnvName(slug).startsWith("COMFY_BASE_URL_"), true);
@@ -153,6 +201,8 @@ const tryon = mustApp("virtual-try-on");
 const swap = mustApp("hand-product-swap");
 const paparazzi = mustApp("paparazzi-me");
 const cutout = mustApp("background-removal");
+const productSwap = mustApp("open-product-swap");
+const unboxing = mustApp("open-unboxing");
 
 const words = relight.intensityWords!;
 assert.equal(intensityWord(0, words), "subtle");
@@ -338,6 +388,80 @@ assert.equal(bg.extra_data, undefined);
 assert.equal(bg.workflow["2"].inputs.bg_removal_name, "birefnet.safetensors");
 assert.equal(bg.workflow["6"].class_type, "SaveImage");
 
+const kraft = getBoxPreset("kraft_mailer");
+assert.ok(kraft);
+assert.deepEqual(insertPixels(kraft), { x: 243, y: 639, width: 413, height: 322 });
+
+const swapJob = buildJobBody(
+  productSwap,
+  {
+    video: { id: "44444444-4444-4444-8444-444444444444", filePath: "input.mp4" },
+    product: { id: "55555555-5555-4555-8555-555555555555", filePath: "product.png" },
+  },
+  { videoSize: "720p", description: "matte ginger bottle", seed: 7, hasImage: true },
+  "work-key",
+);
+assert.equal(swapJob.workflow["1"].class_type, "LoadVideo");
+assert.deepEqual(swapJob.workflow["1"].inputs.file, {
+  __type: "core/ASSET",
+  info: { id: "44444444-4444-4444-8444-444444444444", file_path: "input.mp4" },
+});
+assert.equal(swapJob.workflow["4"].inputs.width, 720);
+assert.equal(swapJob.workflow["4"].inputs.height, 720);
+assert.equal(swapJob.workflow["20"].inputs.width, 720);
+assert.equal(swapJob.workflow["20"].inputs.height, 720);
+assert.equal(swapJob.workflow["21"].inputs.seed, 7);
+assert.equal(swapJob.workflow["8"].inputs.seed, 7);
+assert.match(String(swapJob.workflow["8"].inputs.prompt), /matte ginger bottle/);
+assert.match(String(swapJob.workflow["18"].inputs.text), /matte ginger bottle/);
+assert.equal(swapJob.workflow["26"].class_type, "SaveVideo");
+assert.equal(swapJob.workflow["27"], undefined);
+assert.equal(swapJob.extra_data?.api_key_comfy_org, "work-key");
+
+const hero = { id: "88888888-8888-4888-8888-888888888888", filePath: "product.png" };
+const empty = { id: "66666666-6666-4666-8666-666666666666", filePath: "box_empty.png" };
+const lid = { id: "77777777-7777-4777-8777-777777777777", filePath: "box_lid.png" };
+const angle = { id: "99999999-9999-4999-8999-999999999999", filePath: "product_2.png" };
+const boxJob = buildJobBody(
+  unboxing,
+  { product: hero, product_2: angle, empty, lid },
+  { box: "kraft_mailer", seed: 9, hasImage: true },
+  "work-key",
+);
+assert.equal(boxJob.workflow["10"].inputs.x, 243);
+assert.equal(boxJob.workflow["10"].inputs.y, 639);
+assert.equal(boxJob.workflow["5"].inputs.width, 413);
+assert.equal(boxJob.workflow["5"].inputs.height, 322);
+assert.equal(boxJob.workflow["7"].inputs.width, 413);
+assert.equal(boxJob.workflow["7"].inputs.height, 322);
+const fluxImages = boxJob.workflow["11"].inputs.images as Record<string, [string, number]>;
+assert.deepEqual(fluxImages.image_1, ["10", 0]);
+assert.deepEqual(fluxImages.image_2, ["1", 0]);
+assert.deepEqual(fluxImages.image_3, ["21", 0]);
+assert.equal(fluxImages.image_4, undefined);
+assert.equal(boxJob.workflow["22"], undefined);
+assert.equal(boxJob.workflow["23"], undefined);
+assert.equal(boxJob.workflow["24"], undefined);
+assert.match(String(boxJob.workflow["11"].inputs.prompt), /Images 3/);
+assert.match(String(boxJob.workflow["13"].inputs.prompt), /static/);
+assert.equal(boxJob.workflow["15"].inputs.model_name, "rife_v4.26.safetensors");
+assert.equal(boxJob.workflow["16"].inputs.multiplier, 2);
+assert.equal(boxJob.workflow["18"].class_type, "SaveVideo");
+assert.equal(boxJob.extra_data?.api_key_comfy_org, "work-key");
+assert.equal(redactJobBody(boxJob).extra_data?.api_key_comfy_org, "<redacted>");
+assert.equal(boxJob.extra_data?.api_key_comfy_org, "work-key");
+
+const solo = buildJobBody(
+  unboxing,
+  { product: hero, empty, lid },
+  { box: "kraft_mailer", seed: 1, hasImage: true },
+  null,
+);
+assert.equal((solo.workflow["11"].inputs.images as Record<string, unknown>).image_3, undefined);
+assert.equal(solo.workflow["21"], undefined);
+assert.equal(solo.extra_data?.api_key_comfy_org, "");
+assert.equal(String(solo.workflow["11"].inputs.prompt).includes("Images 3"), false);
+
 assert.throws(() => buildPrompt(relight, { preset: "nope", direction: "left", intensity: 10 }), /preset/i);
 
 const assetForm = buildAssetForm(Buffer.from("png"), "input.png");
@@ -345,6 +469,9 @@ assert.deepEqual([...assetForm.keys()], ["content_type", "file_path", "tags", "f
 assert.equal(assetForm.get("content_type"), "image/png");
 assert.equal(assetForm.get("file_path"), "input.png");
 assert.equal(assetForm.get("tags"), '["input"]');
+const videoForm = buildAssetForm(Buffer.from("mp4"), "input.mp4", "video/mp4");
+assert.deepEqual([...videoForm.keys()], ["content_type", "file_path", "tags", "file"]);
+assert.equal(videoForm.get("content_type"), "video/mp4");
 
 const savedSecret = process.env.OUTPUT_SIGNING_SECRET;
 const savedKey = process.env.COMFY_CLOUD_API_KEY;
@@ -367,6 +494,36 @@ assert.equal(verifyAssetSignature(assetId, fromKeyA), false);
 process.env.COMFY_API_KEY = "preferred-key";
 assert.equal(apiKey(), "preferred-key");
 assert.notEqual(signAssetId(assetId), fromKeyA);
+
+const savedWorkKey = process.env.COMFY_API_KEY_WORK_PERSONAL;
+process.env.COMFY_API_KEY = "shared-key";
+process.env.COMFY_API_KEY_WORK_PERSONAL = "work-key";
+assert.equal(apiKey("open-product-swap"), "work-key");
+assert.equal(apiKey("open-unboxing"), "work-key");
+assert.equal(apiKey("hand-product-swap"), "shared-key");
+assert.equal(apiKey(), "shared-key");
+delete process.env.COMFY_API_KEY_WORK_PERSONAL;
+assert.equal(apiKey("open-product-swap"), null);
+assert.equal(apiKey("hand-product-swap"), "shared-key");
+assert.match(missingKeyMessage("open-product-swap"), /COMFY_API_KEY_WORK_PERSONAL/);
+assert.equal(missingKeyMessage("open-product-swap").includes("COMFY_API_KEY or"), false);
+process.env.COMFY_API_KEY_WORK_PERSONAL = "work-key";
+const swapAsset = publicRouteId("open-product-swap", "33333333-3333-4333-8333-333333333333");
+const handAsset = publicRouteId("hand-product-swap", "33333333-3333-4333-8333-333333333333");
+const swapSig = signAssetId(swapAsset);
+const handSig = signAssetId(handAsset);
+process.env.COMFY_API_KEY_WORK_PERSONAL = "other-work";
+assert.equal(verifyAssetSignature(swapAsset, swapSig), false);
+assert.equal(verifyAssetSignature(handAsset, handSig), true);
+process.env.COMFY_API_KEY_WORK_PERSONAL = "work-key";
+assert.equal(verifyAssetSignature(swapAsset, swapSig), true);
+process.env.COMFY_API_KEY = "changed-shared";
+assert.equal(verifyAssetSignature(handAsset, handSig), false);
+assert.equal(verifyAssetSignature(swapAsset, swapSig), true);
+process.env.COMFY_API_KEY = "shared-key";
+if (savedWorkKey === undefined) delete process.env.COMFY_API_KEY_WORK_PERSONAL;
+else process.env.COMFY_API_KEY_WORK_PERSONAL = savedWorkKey;
+
 if (savedSecret === undefined) delete process.env.OUTPUT_SIGNING_SECRET;
 else process.env.OUTPUT_SIGNING_SECRET = savedSecret;
 if (savedKey === undefined) delete process.env.COMFY_CLOUD_API_KEY;

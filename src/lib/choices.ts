@@ -32,6 +32,11 @@ export const RESOLUTION_OPTIONS = [
   { value: "4K", label: "4K" },
 ] as const;
 
+export const VIDEO_SIZE_OPTIONS = [
+  { value: "480p", label: "480p" },
+  { value: "720p", label: "720p" },
+] as const;
+
 export type ResolutionValue = (typeof RESOLUTION_VALUES)[number];
 
 export type FitValue = (typeof FIT_VALUES)[number];

@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BackgroundValue, FormatValue } from "@/lib/choices";
 import { downloadBlob, exportCutout } from "@/lib/composite";
-import { randomSeed, shrinkForUpload } from "@/lib/prepare-image";
-import { LILAC, TERMINAL_STATUSES, type CatalogApp, type JobView, type RunResponse, type TextControl } from "@/lib/types";
+import { FORM_BUDGET_BYTES, VIDEO_FORM_BUDGET_BYTES, imageRejectReason, packImages, randomSeed, shrinkForUpload, videoRejectReason } from "@/lib/prepare-image";
+import { LILAC, TERMINAL_STATUSES, type CatalogApp, type CatalogImage, type JobView, type RunResponse, type TextControl } from "@/lib/types";
 import { AppIcon } from "@/components/app-icon";
 
 type SceneCandidate = {
@@ -15,12 +15,17 @@ type SceneCandidate = {
   height: number;
 };
 
-type UploadState = {
+type Shot = {
   file: File;
+  source: File;
   url: string;
   name: string;
   width: number;
   height: number;
+};
+
+type UploadState = Shot & {
+  shots?: Shot[];
 };
 
 type HistoryItem = {
@@ -32,6 +37,7 @@ type HistoryItem = {
   frames: string;
   width: number;
   height: number;
+  video: boolean;
 };
 
 type Phase = "idle" | "queued" | "running" | "done" | "error";
@@ -74,6 +80,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
   const [searchProvider, setSearchProvider] = useState("");
   const [searching, setSearching] = useState(false);
   const [findingScene, setFindingScene] = useState(false);
+  const [waited, setWaited] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [previewWidth, setPreviewWidth] = useState(640);
@@ -147,26 +154,113 @@ export function AppCard({ app }: { app: CatalogApp }) {
     }
   }
 
-  async function takeFile(role: string, file: File | undefined) {
-    if (!file) return;
+  function imageSpec(role: string): CatalogImage | undefined {
+    return app.images.find((image) => image.key === role);
+  }
+
+  function revokeUpload(upload: UploadState | undefined) {
+    if (!upload) return;
+    const urls = new Set<string>([upload.url]);
+    for (const shot of upload.shots ?? []) urls.add(shot.url);
+    for (const url of urls) URL.revokeObjectURL(url);
+  }
+
+  function rememberShots(role: string, sources: File[], prepared: { file: File; width: number; height: number }[]) {
+    setUploads((current) => {
+      revokeUpload(current[role]);
+      const shots: Shot[] = prepared.map((item, index) => ({
+        file: item.file,
+        source: sources[index],
+        url: URL.createObjectURL(item.file),
+        name: sources[index]?.name || item.file.name,
+        width: item.width,
+        height: item.height,
+      }));
+      const first = shots[0];
+      if (!first) {
+        const next = { ...current };
+        delete next[role];
+        return next;
+      }
+      return { ...current, [role]: shots.length > 1 || imageSpec(role)?.multiple ? { ...first, shots } : first };
+    });
+  }
+
+  async function takeFiles(role: string, incoming: File[]) {
+    if (incoming.length === 0) return;
+    const spec = imageSpec(role);
     setNeed(null);
     setError(null);
     try {
-      const prepared = await shrinkForUpload(file);
-      setUploads((current) => {
-        const previous = current[role];
-        if (previous) URL.revokeObjectURL(previous.url);
-        return {
-          ...current,
-          [role]: {
-            file: prepared.file,
-            url: URL.createObjectURL(prepared.file),
-            name: file.name,
-            width: prepared.width,
-            height: prepared.height,
-          },
-        };
-      });
+      if (spec?.accept === "video") {
+        const file = incoming[0];
+        const reason = file ? videoRejectReason(file) : "Upload a video.";
+        if (reason || !file) {
+          setNeed(reason);
+          return;
+        }
+        setUploads((current) => {
+          revokeUpload(current[role]);
+          return {
+            ...current,
+            [role]: {
+              file,
+              source: file,
+              url: URL.createObjectURL(file),
+              name: file.name,
+              width: 0,
+              height: 0,
+            },
+          };
+        });
+        return;
+      }
+      const accepted: File[] = [];
+      for (const file of incoming) {
+        const reason = imageRejectReason(file);
+        if (reason) {
+          setNeed(reason);
+          if (accepted.length === 0) return;
+          continue;
+        }
+        accepted.push(file);
+      }
+      if (accepted.length === 0) return;
+      if (spec?.multiple) {
+        const maxCount = spec.maxCount ?? 5;
+        const existing = uploads[role]?.shots?.map((shot) => shot.source) ?? [];
+        const overflow = existing.length + accepted.length > maxCount;
+        const sources = [...existing, ...accepted].slice(0, maxCount);
+        if (overflow) setNeed(`Use at most ${maxCount} product photos.`);
+        const prepared = await packImages(sources, FORM_BUDGET_BYTES, 1280);
+        rememberShots(role, sources, prepared);
+        return;
+      }
+      const sharesVideo = app.images.some((image) => image.accept === "video");
+      const prepared = await shrinkForUpload(accepted[0], sharesVideo ? 1280 : 2048, sharesVideo ? 280_000 : undefined);
+      rememberShots(role, [accepted[0]], [prepared]);
+    } catch (err) {
+      setNeed(err instanceof Error ? err.message : "Could not read that image.");
+    }
+  }
+
+  async function removeShot(role: string, index: number) {
+    const shots = uploads[role]?.shots;
+    if (!shots) return;
+    const sources = shots.filter((_, shotIndex) => shotIndex !== index).map((shot) => shot.source);
+    setNeed(null);
+    try {
+      if (sources.length === 0) {
+        setUploads((current) => {
+          revokeUpload(current[role]);
+          const next = { ...current };
+          delete next[role];
+          return next;
+        });
+        return;
+      }
+      const prepared = await packImages(sources, FORM_BUDGET_BYTES, 1280);
+      rememberShots(role, sources, prepared);
     } catch (err) {
       setNeed(err instanceof Error ? err.message : "Could not read that image.");
     }
@@ -184,10 +278,23 @@ export function AppCard({ app }: { app: CatalogApp }) {
         if (app.kind === "tryon") return "Upload a person and a garment.";
         if (app.kind === "swap") return "Upload a hand photo and a product.";
         if (app.kind === "sprite") return "Upload a character image.";
+        if (app.kind === "product-swap") return "Upload a clip and a product photo.";
+        if (app.kind === "unboxing") return "Add at least one product photo.";
         return "Upload an image first.";
       }
     }
     return null;
+  }
+
+  function formBytes(): number {
+    let total = 0;
+    for (const image of app.images) {
+      const upload = uploads[image.key];
+      if (!upload) continue;
+      const shots = upload.shots ?? [upload];
+      for (const shot of shots) total += shot.file.size;
+    }
+    return total;
   }
 
   function labelFor(next = values): string {
@@ -205,6 +312,17 @@ export function AppCard({ app }: { app: CatalogApp }) {
     }
     if (app.kind === "tryon") return `${controlValue(next, "fit")} fit`;
     if (app.kind === "swap") return controlValue(next, "resolution") || "2K";
+    if (app.kind === "product-swap") {
+      const note = controlValue(next, "description").trim();
+      const size = controlValue(next, "videoSize") || "480p";
+      return note ? `${size} · ${note}` : size;
+    }
+    if (app.kind === "unboxing") {
+      const box = controlValue(next, "box");
+      const option = app.controls.find((control) => control.key === "box");
+      const label = option && option.type === "cards" ? option.options.find((item) => item.value === box)?.label : box;
+      return label || "Box";
+    }
     if (app.kind === "paparazzi") {
       const name = controlValue(next, "celebrity").trim();
       const resolution = controlValue(next, "resolution") || "2K";
@@ -219,9 +337,15 @@ export function AppCard({ app }: { app: CatalogApp }) {
       setNeed(missing);
       return;
     }
+    const budget = app.images.some((image) => image.accept === "video") ? VIDEO_FORM_BUDGET_BYTES : FORM_BUDGET_BYTES;
+    if (formBytes() > budget) {
+      setNeed("These files are over the upload limit. Trim the video or use smaller photos.");
+      return;
+    }
     if (busy) return;
     setError(null);
     setNeed(null);
+    setWaited(0);
     const nextSeed = app.hasSeed ? randomSeed() : null;
     setSeed(nextSeed);
     setPhase("queued");
@@ -236,10 +360,12 @@ export function AppCard({ app }: { app: CatalogApp }) {
       const form = new FormData();
       for (const image of app.images) {
         const upload = uploads[image.key];
-        if (upload) form.append(image.key, upload.file, upload.file.name);
+        if (!upload) continue;
+        const shots = upload.shots ?? [upload];
+        for (const shot of shots) form.append(image.key, shot.file, shot.file.name);
       }
       for (const control of app.controls) {
-        if (control.clientOnly) continue;
+        if ("clientOnly" in control && control.clientOnly) continue;
         form.append(control.key, controlValue(values, control.key));
       }
       if (app.kind === "sprite" && app.grids && !app.controls.some((control) => control.key === "frames")) {
@@ -254,13 +380,21 @@ export function AppCard({ app }: { app: CatalogApp }) {
       if (!response.ok) throw new Error(payload.error?.message || "The run failed.");
 
       const started = Date.now();
+      const limit = app.pollMs;
       let failures = 0;
       let job: JobView | null = null;
       while (!job || !TERMINAL_STATUSES.includes(job.status)) {
-        if (Date.now() - started > 8 * 60 * 1000) {
-          throw new Error("Timed out waiting for this deployment. If it is stopped, start it (3 active max). If it is still cold-starting, wait and run again.");
+        const elapsed = Date.now() - started;
+        setWaited(Math.round(elapsed / 1000));
+        if (elapsed > limit) {
+          const minutes = Math.round(limit / 60000);
+          throw new Error(
+            app.output === "video"
+              ? `Timed out after about ${minutes} minutes. If the deployment is stopped, start it (3 active max). If it is still cold-starting, wait and run again.`
+              : "Timed out waiting for this deployment. If it is stopped, start it (3 active max). If it is still cold-starting, wait and run again.",
+          );
         }
-        await sleep(job ? 1750 : 400, controller.signal);
+        await sleep(job ? (app.output === "video" ? 2500 : 1750) : 400, controller.signal);
         const statusRes = await fetch(`/api/jobs/${payload.jobId}`, { signal: controller.signal });
         if (!statusRes.ok) {
           failures += 1;
@@ -281,7 +415,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
         throw new Error(job.error?.message || statusMessage(job.status));
       }
       const output = job.outputs[0];
-      if (!output?.sig) throw new Error("The job finished without an image.");
+      if (!output?.sig) throw new Error(app.output === "video" ? "The job finished without a video." : "The job finished without an image.");
       const imageRes = await fetch(`/api/outputs/${encodeURIComponent(output.id)}?sig=${encodeURIComponent(output.sig)}`, { signal: controller.signal });
       if (!imageRes.ok) {
         const body = (await imageRes.json().catch(() => null)) as { error?: { message?: string } } | null;
@@ -289,7 +423,8 @@ export function AppCard({ app }: { app: CatalogApp }) {
       }
       const blob = await imageRes.blob();
       const url = URL.createObjectURL(blob);
-      const dims = await measureBlob(url);
+      const video = blob.type.startsWith("video/");
+      const dims = await measureBlob(url, video);
       const before: Record<string, string> = {};
       for (const image of app.images) {
         const upload = uploads[image.key];
@@ -304,16 +439,19 @@ export function AppCard({ app }: { app: CatalogApp }) {
         frames: controlValue(values, "frames") || Object.keys(app.grids ?? {})[0] || "8",
         width: dims.width,
         height: dims.height,
+        video,
       };
       setHistory((current) => [...current, item].slice(-5));
       setActiveId(item.id);
       setView(0);
       setPhase("done");
       setProgress(1);
+      setWaited(0);
     } catch (err) {
       setFindingScene(false);
       if (controller.signal.aborted) return;
       setPhase("error");
+      setWaited(0);
       setError(err instanceof Error ? err.message : "The run failed.");
     }
   }
@@ -333,12 +471,21 @@ export function AppCard({ app }: { app: CatalogApp }) {
         setToast(filename);
         return;
       }
-      const ext = active.blob.type.includes("jpeg") ? "jpg" : active.blob.type.includes("webp") ? "webp" : "png";
+      const type = active.blob.type;
+      const ext = type.startsWith("video/")
+        ? type.includes("webm")
+          ? "webm"
+          : "mp4"
+        : type.includes("jpeg")
+          ? "jpg"
+          : type.includes("webp")
+            ? "webp"
+            : "png";
       const filename = `${app.id}.${ext}`;
       downloadBlob(active.blob, filename);
       setToast(filename);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not download that image.");
+      setError(err instanceof Error ? err.message : "Could not download that result.");
     }
   }
 
@@ -360,7 +507,9 @@ export function AppCard({ app }: { app: CatalogApp }) {
   const grid = app.grids?.[active?.frames || Object.keys(app.grids ?? {})[0] || "8"] ?? { cols: 4, rows: 2 };
 
   const selectedScene = selectedToken ? `/api/paparazzi/scene?token=${encodeURIComponent(selectedToken)}` : "";
-  const status = findingScene ? "Searching for a paparazzi photo" : statusLine(phase, progress, error, primaryUpload, active);
+  const status = findingScene
+    ? "Searching for a paparazzi photo"
+    : statusLine(phase, progress, error, primaryUpload, active, waited, app.output);
   const bar = phase === "idle" ? 0 : phase === "done" ? 1 : phase === "error" ? 0 : progress || (phase === "queued" ? 0.08 : 0.2);
   const pillClass = phase === "running" || phase === "queued" ? "run" : phase === "done" ? "done" : phase === "error" ? "err" : "";
   const pillText = findingScene
@@ -441,11 +590,11 @@ export function AppCard({ app }: { app: CatalogApp }) {
             .map((image) => (
               <UploadField
                 key={image.key}
-                label={image.label}
-                optional={image.optional}
+                image={image}
                 upload={uploads[image.key]}
                 hot={hot === image.key}
-                onFile={(file) => void takeFile(image.key, file)}
+                onFiles={(files) => void takeFiles(image.key, files)}
+                onRemove={(index) => void removeShot(image.key, index)}
                 onHot={(on) => setHot(on ? image.key : null)}
               />
             ))}
@@ -499,14 +648,48 @@ export function AppCard({ app }: { app: CatalogApp }) {
               ) : null}
               {control.type === "text" ? (
                 <>
-                  <textarea
-                    className="text"
-                    placeholder={control.placeholder}
-                    value={controlValue(values, control.key)}
-                    aria-label={control.label}
-                    maxLength={800}
-                    onChange={(event) => setControl(control.key, event.target.value)}
-                  />
+                  {control.multiline === false ? (
+                    <input
+                      className="text"
+                      placeholder={control.placeholder}
+                      value={controlValue(values, control.key)}
+                      aria-label={control.label}
+                      maxLength={400}
+                      onChange={(event) => setControl(control.key, event.target.value)}
+                    />
+                  ) : (
+                    <textarea
+                      className="text"
+                      placeholder={control.placeholder}
+                      value={controlValue(values, control.key)}
+                      aria-label={control.label}
+                      maxLength={800}
+                      onChange={(event) => setControl(control.key, event.target.value)}
+                    />
+                  )}
+                  {control.hint ? <p className="field-note">{control.hint}</p> : null}
+                </>
+              ) : null}
+              {control.type === "cards" ? (
+                <>
+                  <div className="box-pick" role="radiogroup" aria-label={control.label}>
+                    {control.options.map((option) => {
+                      const selected = controlValue(values, control.key) === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          className={selected ? "on" : ""}
+                          onClick={() => setControl(control.key, option.value)}
+                        >
+                          <img src={option.image} alt="" />
+                          <span>{option.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                   {control.hint ? <p className="field-note">{control.hint}</p> : null}
                 </>
               ) : null}
@@ -517,11 +700,11 @@ export function AppCard({ app }: { app: CatalogApp }) {
             .map((image) => (
               <UploadField
                 key={image.key}
-                label={image.label}
-                optional={image.optional}
+                image={image}
                 upload={uploads[image.key]}
                 hot={hot === image.key}
-                onFile={(file) => void takeFile(image.key, file)}
+                onFiles={(files) => void takeFiles(image.key, files)}
+                onRemove={(index) => void removeShot(image.key, index)}
                 onHot={(on) => setHot(on ? image.key : null)}
               />
             ))}
@@ -579,12 +762,16 @@ export function AppCard({ app }: { app: CatalogApp }) {
             ) : null}
             {active && !showCompare && !showSprite ? (
               <div className="shot-wrap">
-                <img className="shot" src={active.url} alt={`${app.name} result`} />
+                <ResultMedia url={active.url} video={active.video} alt={`${app.name} result`} />
               </div>
             ) : null}
             {!active && primaryUpload ? (
               <div className="shot-wrap">
-                <img className="shot" src={primaryUpload.url} alt="Uploaded image" />
+                <ResultMedia
+                  url={primaryUpload.url}
+                  video={imageSpec(primaryKey ?? "")?.accept === "video"}
+                  alt="Uploaded file"
+                />
               </div>
             ) : null}
             {!active && !primaryUpload && selectedScene ? (
@@ -625,7 +812,9 @@ export function AppCard({ app }: { app: CatalogApp }) {
                     onClick={() => item && setActiveId(item.id)}
                     aria-label={item ? `Result ${index + 1}` : "Empty history slot"}
                   >
-                    {item ? <img src={item.url} alt="" /> : null}
+                    {item ? (
+                      item.video ? <video src={item.url} muted playsInline preload="metadata" /> : <img src={item.url} alt="" />
+                    ) : null}
                   </button>
                 ))}
               </div>
@@ -657,22 +846,54 @@ function statusLine(
   error: string | null,
   primary: UploadState | undefined,
   active: HistoryItem | null,
+  waited: number,
+  output: "image" | "video",
 ): string {
   if (error && phase === "error") return error;
-  if (phase === "queued") return "Queued · the deployment may be cold-starting";
-  if (phase === "running") return `Running · ${Math.round(progress * 100)}%`;
-  if (phase === "done" && active) return `Done · ${active.width} × ${active.height}`;
+  if (phase === "queued") {
+    const clock = waited > 0 ? ` · ${waited}s` : "";
+    return `Queued${clock} · the deployment may be cold-starting`;
+  }
+  if (phase === "running") {
+    const pct = Math.round(progress * 100);
+    if (output === "video") return `Running · ${pct}% · ${waited}s · video jobs take several minutes`;
+    return `Running · ${pct}%`;
+  }
+  if (phase === "done" && active) {
+    if (active.video && active.width > 0 && active.height > 0) return `Done · ${active.width} × ${active.height}`;
+    if (active.video) return "Done · video";
+    return `Done · ${active.width} × ${active.height}`;
+  }
   if (primary) return `Ready · ${primary.name}`;
   return "Waiting for input";
 }
 
-function measureBlob(url: string): Promise<{ width: number; height: number }> {
+function measureBlob(url: string, video: boolean): Promise<{ width: number; height: number }> {
+  if (video) {
+    return new Promise((resolve) => {
+      const el = document.createElement("video");
+      el.preload = "metadata";
+      el.onloadedmetadata = () => resolve({ width: el.videoWidth, height: el.videoHeight });
+      el.onerror = () => resolve({ width: 0, height: 0 });
+      el.src = url;
+    });
+  }
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
     img.onerror = () => resolve({ width: 0, height: 0 });
     img.src = url;
   });
+}
+
+function ResultMedia({ url, video, alt }: { url: string; video: boolean; alt: string }) {
+  if (video) return <video className="shot" src={url} controls loop playsInline />;
+  return <img className="shot" src={url} alt={alt} />;
+}
+
+function fileSizeLabel(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 function ControlField({
@@ -716,72 +937,131 @@ function ControlField({
 }
 
 function UploadField({
-  label,
-  optional,
+  image,
   upload,
   hot,
-  onFile,
+  onFiles,
+  onRemove,
   onHot,
 }: {
-  label: string;
-  optional?: boolean;
+  image: CatalogImage;
   upload?: UploadState;
   hot: boolean;
-  onFile: (file: File | undefined) => void;
+  onFiles: (files: File[]) => void;
+  onRemove: (index: number) => void;
   onHot: (on: boolean) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dragDepth = useRef(0);
+  const video = image.accept === "video";
+  const multiple = Boolean(image.multiple);
+  const shots = upload?.shots ?? (upload ? [upload] : []);
+  const accept = video
+    ? "video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
+    : "image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp";
+
+  function openPicker() {
+    inputRef.current?.click();
+  }
+
+  function takeList(list: FileList | null | undefined) {
+    const files = Array.from(list ?? []);
+    if (files.length === 0) return;
+    onFiles(multiple ? files : files.slice(0, 1));
+  }
+
   return (
     <div>
       <div className="lab">
-        {label}
-        {optional ? <b>optional</b> : null}
+        {image.label}
+        {image.optional ? <b>optional</b> : null}
+        {multiple && shots.length > 0 ? <b>{shots.length}</b> : null}
       </div>
-      <label
+      <div
         className={`upload ${hot ? "hot" : ""}`}
-        onDragOver={(event) => {
+        role="button"
+        tabIndex={0}
+        aria-label={video ? `Upload ${image.label}` : `Upload ${image.label}`}
+        onClick={openPicker}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openPicker();
+          }
+        }}
+        onDragEnter={(event) => {
           event.preventDefault();
+          dragDepth.current += 1;
           onHot(true);
         }}
-        onDragLeave={() => onHot(false)}
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+          onHot(true);
+        }}
+        onDragLeave={(event) => {
+          event.preventDefault();
+          dragDepth.current = Math.max(0, dragDepth.current - 1);
+          if (dragDepth.current === 0) onHot(false);
+        }}
         onDrop={(event) => {
           event.preventDefault();
+          dragDepth.current = 0;
           onHot(false);
-          onFile(event.dataTransfer.files?.[0]);
+          takeList(event.dataTransfer.files);
         }}
       >
         <input
+          ref={inputRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp"
+          accept={accept}
+          multiple={multiple}
+          tabIndex={-1}
+          aria-hidden="true"
+          onClick={(event) => event.stopPropagation()}
           onChange={(event) => {
-            onFile(event.target.files?.[0]);
+            takeList(event.target.files);
             event.target.value = "";
           }}
         />
-        {upload ? (
+        {upload && !multiple ? (
           <div className="up-done">
             <div className="thumb">
-              <img src={upload.url} alt="" />
+              {video ? <video src={upload.url} muted playsInline preload="metadata" /> : <img src={upload.url} alt="" />}
             </div>
             <div className="up-meta">
               <div className="up-copy">
                 <div className="fn">{upload.name}</div>
-                <div className="dim">
-                  {upload.width} × {upload.height}
-                </div>
+                <div className="dim">{video ? fileSizeLabel(upload.file.size) : `${upload.width} × ${upload.height}`}</div>
               </div>
               <span className="btn">↻ Replace</span>
             </div>
           </div>
         ) : (
           <div className="up-empty">
-            <span className="hint">Drop an image or</span>
+            <span className="hint">
+              {video ? "Drop a clip or" : multiple && shots.length > 0 ? "Drop another photo or" : "Drop an image or"}
+            </span>
             <span className="btn dark">
               <span className="arrow" aria-hidden="true">↑</span>
-              Upload image
+              {video ? "Upload video" : multiple && shots.length > 0 ? "Add photo" : "Upload image"}
             </span>
           </div>
         )}
-      </label>
+      </div>
+      {image.hint ? <p className="field-note">{image.hint}</p> : null}
+      {multiple && shots.length > 0 ? (
+        <div className="shot-row">
+          {shots.map((shot, index) => (
+            <div className="mini" key={`${shot.name}-${index}`}>
+              <img src={shot.url} alt="" />
+              <button type="button" aria-label={`Remove ${shot.name}`} onClick={() => onRemove(index)}>
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

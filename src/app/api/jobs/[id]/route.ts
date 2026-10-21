@@ -1,3 +1,4 @@
+import { getApp } from "@/lib/config";
 import { fetchJob } from "@/lib/comfy";
 import { deploymentFailureMessage, deploymentTarget, getDeployment } from "@/lib/deployments";
 import { isMockMode } from "@/lib/env";
@@ -18,9 +19,12 @@ function clarifyDeploymentError(appTitle: string, job: JobView): JobView {
 }
 
 function scopeOutputs(app: string, job: JobView): JobView {
+  const outputNode = getApp(app)?.output.node;
+  const matched = outputNode ? job.outputs.filter((output) => output.nodeId === outputNode) : [];
+  const outputs = matched.length > 0 ? matched : job.outputs;
   return {
     ...job,
-    outputs: job.outputs.filter((output) => isUuid(output.id)).map((output) => ({ ...output, id: publicRouteId(app, output.id) })),
+    outputs: outputs.filter((output) => isUuid(output.id)).map((output) => ({ ...output, id: publicRouteId(app, output.id) })),
   };
 }
 

@@ -1,4 +1,5 @@
 import { randomInt } from "node:crypto";
+import { getBoxPreset } from "@/lib/box-presets";
 import { FIT_VALUES, type FitValue } from "@/lib/choices";
 import type { AppConfig } from "@/lib/config";
 import { AppError } from "@/lib/http";
@@ -71,6 +72,25 @@ export function parseRunParams(app: AppConfig, form: FormData, hasImage: boolean
 
   if (app.params.resolution) {
     params.resolution = resolutionValue(text(form, "resolution"), app.params.resolution.default ?? "2K");
+  }
+
+  if (app.params.videoSize) {
+    const map = app.params.videoSize.map ?? {};
+    const videoSize = text(form, "videoSize") || app.params.videoSize.default || "";
+    if (!(videoSize in map)) bad("Choose 480p or 720p.");
+    params.videoSize = videoSize;
+  }
+
+  if (app.promptTemplate?.includes("{description}") && !(app.styles && app.motions)) {
+    const description = text(form, "description");
+    if (description.length > 400) bad("Description must be 400 characters or less.");
+    params.description = description;
+  }
+
+  if (app.pipeline === "unboxing") {
+    const box = text(form, "box");
+    if (!getBoxPreset(box)) bad("Choose a box.");
+    params.box = box;
   }
 
   if (app.params.seed) {

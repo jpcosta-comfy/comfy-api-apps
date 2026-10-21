@@ -257,6 +257,11 @@ export async function renderMockOutput(outputId: string, grids: Record<string, s
     png = await renderTryOn(await readRole(meta.id, "scene"), await readRole(meta.id, "user"));
   } else if (meta.app === "background-removal") {
     png = await renderCutout(await readRole(meta.id, "image"));
+  } else if (meta.app === "open-product-swap") {
+    png = await renderTryOn(await readRole(meta.id, "product"), await readRole(meta.id, "product"));
+  } else if (meta.app === "open-unboxing") {
+    const plate = meta.roles.includes("empty") ? await readRole(meta.id, "empty") : await readRole(meta.id, "product");
+    png = await renderTryOn(plate, await readRole(meta.id, "product"));
   } else {
     throw new AppError(404, "not_found", "That output was not found.");
   }

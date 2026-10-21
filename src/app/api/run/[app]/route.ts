@@ -1,14 +1,24 @@
+import { readPresetImage } from "@/lib/box-presets";
 import { getApp } from "@/lib/config";
 import { uploadAsset, submitJob } from "@/lib/comfy";
 import { deploymentTarget } from "@/lib/deployments";
 import { apiKey, isMockMode, missingKeyMessage } from "@/lib/env";
 import { errorResponse, AppError } from "@/lib/http";
 import { publicRouteId } from "@/lib/ids";
-import { prepareImage } from "@/lib/images";
+import { prepareImage, prepareImageBuffer } from "@/lib/images";
+import { prepareVideo, VIDEO_MAX_BYTES } from "@/lib/media";
 import { resolvePaparazziScene } from "@/lib/paparazzi-scene";
 import { saveMockJob } from "@/lib/mock";
 import { parseRunParams } from "@/lib/params";
 import { buildJobBody, filePathFor, redactJobBody, type UploadedAsset } from "@/lib/workflow";
+
+const USER_BODY_MAX = 4_500_000;
+
+type MediaPart = {
+  bytes: Buffer;
+  contentType: string;
+  filePath: string;
+};
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,43 +37,86 @@ export async function POST(request: Request, context: { params: Promise<{ app: s
       throw new AppError(400, "invalid_input", "Upload the image as form data.");
     }
 
-    const files: Record<string, Buffer> = {};
+    const media: Record<string, MediaPart> = {};
+    let incomingBytes = 0;
     for (const [role, spec] of Object.entries(app.imageInputs)) {
-      const entry = form.get(role);
-      if (!(entry instanceof File) || entry.size === 0) {
+      if (spec.supplied) continue;
+      const entries = form.getAll(role).filter((entry): entry is File => entry instanceof File && entry.size > 0);
+      const maxCount = spec.maxCount ?? 1;
+      if (entries.length > maxCount) {
+        throw new AppError(
+          400,
+          "invalid_input",
+          maxCount === 1 ? "Upload one image." : `Upload at most ${maxCount} product photos.`,
+        );
+      }
+      if (entries.length === 0) {
         if (spec.optional) continue;
         if (appId === "paparazzi-me" && role === "scene") continue;
         if (appId === "paparazzi-me" && role === "user") {
           throw new AppError(400, "invalid_input", "Upload your face.");
         }
+        if (appId === "open-product-swap" && role === "product") {
+          throw new AppError(400, "invalid_input", "Upload a product photo.");
+        }
+        if (maxCount > 1) throw new AppError(400, "invalid_input", "Upload at least one product photo.");
         throw new AppError(400, "invalid_input", "Upload the required image.");
       }
-      files[role] = await prepareImage(entry, spec.maxSide);
+      for (let index = 0; index < entries.length; index += 1) {
+        incomingBytes += entries[index].size;
+        const key = index === 0 ? role : `${role}_${index + 1}`;
+        const png = await prepareImage(entries[index], spec.maxSide);
+        media[key] = { bytes: png, contentType: "image/png", filePath: filePathFor(key) };
+      }
     }
-    if (appId === "paparazzi-me" && !files.scene) {
+    for (const [role, spec] of Object.entries(app.videoInputs ?? {})) {
+      const entry = form.get(role);
+      if (!(entry instanceof File) || entry.size === 0) {
+        throw new AppError(
+          400,
+          "invalid_input",
+          "Upload a video of someone holding the product. MP4, MOV, or WebM, trimmed to 4 MB or less.",
+        );
+      }
+      incomingBytes += entry.size;
+      const video = await prepareVideo(entry, spec.maxBytes ?? VIDEO_MAX_BYTES);
+      media[role] = video;
+    }
+    if (incomingBytes > USER_BODY_MAX) {
+      throw new AppError(400, "invalid_input", "These files are over 4.5 MB together. Trim the video or use smaller photos.");
+    }
+    if (appId === "paparazzi-me" && !media.scene) {
       const scene = app.imageInputs.scene;
       if (!scene) throw new AppError(500, "internal", "Paparazzi Me is missing its scene input.");
-      files.scene = await resolvePaparazziScene(form, scene.maxSide);
+      const png = await resolvePaparazziScene(form, scene.maxSide);
+      media.scene = { bytes: png, contentType: "image/png", filePath: filePathFor("scene") };
     }
 
-    const params = parseRunParams(app, form, Boolean(files.image));
+    const params = parseRunParams(app, form, Boolean(media.image));
+    if (app.pipeline === "unboxing" && params.box) {
+      for (const [role, spec] of Object.entries(app.imageInputs)) {
+        if (!spec.supplied) continue;
+        const kind = spec.supplied === "preset-lid" ? "lid" : "empty";
+        const png = await prepareImageBuffer(readPresetImage(params.box, kind), spec.maxSide);
+        media[role] = { bytes: png, contentType: "image/png", filePath: filePathFor(role) };
+      }
+    }
     const mock = isMockMode();
-    const key = apiKey();
+    const key = apiKey(appId);
     if (!mock && !key) {
-      throw new AppError(500, "missing_key", missingKeyMessage());
+      throw new AppError(500, "missing_key", missingKeyMessage(appId));
     }
     const target = mock ? null : deploymentTarget(appId);
 
     const assets: Record<string, UploadedAsset> = {};
-    if (mock || !target) {
-      for (const role of Object.keys(files)) {
-        assets[role] = { id: crypto.randomUUID(), filePath: filePathFor(role) };
-      }
-    } else {
-      for (const [role, png] of Object.entries(files)) {
-        const filePath = filePathFor(role);
-        const id = await uploadAsset(target, png, filePath);
-        assets[role] = { id, filePath };
+    const imageFiles: Record<string, Buffer> = {};
+    for (const [role, part] of Object.entries(media)) {
+      if (part.contentType.startsWith("image/")) imageFiles[role] = part.bytes;
+      if (mock || !target) {
+        assets[role] = { id: crypto.randomUUID(), filePath: part.filePath };
+      } else {
+        const id = await uploadAsset(target, part.bytes, part.filePath, part.contentType);
+        assets[role] = { id, filePath: part.filePath };
       }
     }
 
@@ -71,7 +124,7 @@ export async function POST(request: Request, context: { params: Promise<{ app: s
     const body = buildJobBody(app, assets, params, key);
     let jobId: string;
     if (mock || !target) {
-      const saved = await saveMockJob(app, appId, params, files);
+      const saved = await saveMockJob(app, appId, params, imageFiles);
       jobId = saved.id;
     } else {
       jobId = publicRouteId(appId, await submitJob(target, body, idempotencyKey));

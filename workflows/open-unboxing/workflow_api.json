@@ -1,0 +1,241 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "product.png"
+    },
+    "_meta": {
+      "title": "Product photo"
+    }
+  },
+  "2": {
+    "class_type": "LoadBackgroundRemovalModel",
+    "inputs": {
+      "bg_removal_name": "birefnet.safetensors"
+    },
+    "_meta": {
+      "title": "BiRefNet"
+    }
+  },
+  "3": {
+    "class_type": "RemoveBackground",
+    "inputs": {
+      "bg_removal_model": ["2", 0],
+      "image": ["1", 0]
+    },
+    "_meta": {
+      "title": "Foreground mask"
+    }
+  },
+  "4": {
+    "class_type": "InvertMask",
+    "inputs": {
+      "mask": ["3", 0]
+    },
+    "_meta": {
+      "title": "Subject mask"
+    }
+  },
+  "5": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": ["1", 0],
+      "upscale_method": "lanczos",
+      "width": 413,
+      "height": 322,
+      "crop": "disabled"
+    },
+    "_meta": {
+      "title": "Scale product to the insert"
+    }
+  },
+  "6": {
+    "class_type": "MaskToImage",
+    "inputs": {
+      "mask": ["4", 0]
+    },
+    "_meta": {
+      "title": "Mask as image"
+    }
+  },
+  "7": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": ["6", 0],
+      "upscale_method": "lanczos",
+      "width": 413,
+      "height": 322,
+      "crop": "disabled"
+    },
+    "_meta": {
+      "title": "Scale mask to the insert"
+    }
+  },
+  "8": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "image": ["7", 0],
+      "channel": "red"
+    },
+    "_meta": {
+      "title": "Insert mask"
+    }
+  },
+  "9": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "box_empty.png"
+    },
+    "_meta": {
+      "title": "Empty overhead box"
+    }
+  },
+  "10": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": ["9", 0],
+      "source": ["5", 0],
+      "x": 243,
+      "y": 639,
+      "resize_source": false,
+      "mask": ["8", 0]
+    },
+    "_meta": {
+      "title": "Nest the cutout in the insert"
+    }
+  },
+  "11": {
+    "class_type": "Flux3ImageNode",
+    "inputs": {
+      "prompt": "Locked 90-degree top-down overhead camera, no tilt, no cut, pale oak desk, even daylight. Using image 1 as the plate, nest the exact product from image 2 into the insert well so it looks physically present: correct contact shadows, a slight paperboard or tissue tuck, matching light. Do not change camera, crop, or the unbranded box. No hands in this frame. No logos, no text, no barcodes, no watermarks, no faces, no torsos.",
+      "images": {
+        "image_1": ["10", 0],
+        "image_2": ["1", 0]
+      },
+      "aspect_ratio": "3:4",
+      "resolution": "1K",
+      "grounding": false,
+      "safety_tolerance": 4,
+      "seed": 42
+    },
+    "_meta": {
+      "title": "FLUX 3 nested keyframe"
+    }
+  },
+  "12": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "box_lid.png"
+    },
+    "_meta": {
+      "title": "Sealed lid-on box"
+    }
+  },
+  "13": {
+    "class_type": "LtxApi25ImageToVideo",
+    "inputs": {
+      "image": ["12", 0],
+      "last_frame": ["11", 0],
+      "model": "LTX-2.5 (Fast)",
+      "model.duration": "3",
+      "model.resolution": "720x1280",
+      "model.fps": "24",
+      "model.generate_audio": true,
+      "prompt": "Locked 90-degree top-down overhead camera, perfectly static, no tilt, no pan, no zoom, no cut, pale oak desk, even daylight. Only bare adult hands move: they enter from the bottom of the frame and open the sealed box until the last frame, where the product is nested in the insert and the hands are leaving. The box, desk, product, and camera stay fixed except for the hands and the lid. Slow ASMR pacing. No logos, no text, no faces, no torsos. Audio: close-mic paper and tape, quiet room tone, no music, no voiceover.",
+      "seed": 42
+    },
+    "_meta": {
+      "title": "LTX 2.5 first-last frame"
+    }
+  },
+  "14": {
+    "class_type": "GetVideoComponents",
+    "inputs": {
+      "video": ["13", 0]
+    },
+    "_meta": {
+      "title": "Frames and audio"
+    }
+  },
+  "15": {
+    "class_type": "FrameInterpolationModelLoader",
+    "inputs": {
+      "model_name": "rife_v4.26.safetensors"
+    },
+    "_meta": {
+      "title": "RIFE 4.26"
+    }
+  },
+  "16": {
+    "class_type": "FrameInterpolate",
+    "inputs": {
+      "interp_model": ["15", 0],
+      "images": ["14", 0],
+      "multiplier": 2
+    },
+    "_meta": {
+      "title": "RIFE x2"
+    }
+  },
+  "17": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": ["16", 0],
+      "fps": 48,
+      "audio": ["14", 1],
+      "codec": "h264",
+      "color_space": "sRGB",
+      "bit_depth": "auto"
+    },
+    "_meta": {
+      "title": "Pack 48 fps mp4"
+    }
+  },
+  "18": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": ["17", 0],
+      "filename_prefix": "video/open_unboxing",
+      "format": "mp4"
+    },
+    "_meta": {
+      "title": "Save unboxing video"
+    }
+  },
+  "21": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "product_2.png"
+    },
+    "_meta": {
+      "title": "Product angle 2"
+    }
+  },
+  "22": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "product_3.png"
+    },
+    "_meta": {
+      "title": "Product angle 3"
+    }
+  },
+  "23": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "product_4.png"
+    },
+    "_meta": {
+      "title": "Product angle 4"
+    }
+  },
+  "24": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "product_5.png"
+    },
+    "_meta": {
+      "title": "Product angle 5"
+    }
+  }
+}
