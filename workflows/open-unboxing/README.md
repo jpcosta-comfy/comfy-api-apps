@@ -15,7 +15,6 @@ Preset stills live in `public/presets/<id>/` (`empty.png`, `lid_on.png`, `thumb.
 | 1 | LoadImage | **Hero product** photo |
 | 2 | LoadBackgroundRemovalModel | `birefnet.safetensors` |
 | 3 | RemoveBackground | Foreground mask |
-| 4 | InvertMask | Subject mask, same pattern as Background removal |
 | 5 | ImageScale | Product RGB scaled to the insert |
 | 7 | ImageScale | Mask scaled to the same width and height |
 | 9 | LoadImage | Preset **empty** overhead plate (uploaded on the server) |
