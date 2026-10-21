@@ -27,15 +27,6 @@
       "title": "Foreground mask"
     }
   },
-  "4": {
-    "class_type": "InvertMask",
-    "inputs": {
-      "mask": ["3", 0]
-    },
-    "_meta": {
-      "title": "Subject mask"
-    }
-  },
   "5": {
     "class_type": "ImageScale",
     "inputs": {
@@ -52,7 +43,7 @@
   "6": {
     "class_type": "MaskToImage",
     "inputs": {
-      "mask": ["4", 0]
+      "mask": ["3", 0]
     },
     "_meta": {
       "title": "Mask as image"
