@@ -60,7 +60,7 @@
     "open-unboxing": {
       "deploymentId": "dep-727f285f-f3d8-4348-8378-eacd314ebb58",
       "endpointUrl": "https://dep-727f285f-f3d8-4348-8378-eacd314ebb58.run.comfy.app",
-      "releaseId": "pending",
+      "releaseId": "69e82472-1206-473f-851e-286c5fcb2480",
       "env": "COMFY_BASE_URL_OPEN_UNBOXING",
       "keyEnv": "COMFY_API_KEY_WORK_PERSONAL",
       "note": "Work-personal workspace. releaseId is a placeholder to fill in after the release is published. Auth is only COMFY_API_KEY_WORK_PERSONAL."
