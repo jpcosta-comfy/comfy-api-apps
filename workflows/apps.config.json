@@ -152,7 +152,9 @@
           "also": [
             { "node": "4", "input": "height" },
             { "node": "20", "input": "width" },
-            { "node": "20", "input": "height" }
+            { "node": "20", "input": "height" },
+            { "node": "40", "input": "width" },
+            { "node": "40", "input": "height" }
           ]
         }
       },

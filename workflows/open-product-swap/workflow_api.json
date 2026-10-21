@@ -164,7 +164,7 @@
         "11",
         0
       ],
-      "expand": 20,
+      "expand": 40,
       "tapered_corners": true
     },
     "_meta": {
@@ -189,7 +189,7 @@
         0
       ],
       "lora_name": "Wan21_CausVid_14B_T2V_lora_rank32.safetensors",
-      "strength_model": 0.3
+      "strength_model": 0.5
     },
     "_meta": {
       "title": "CausVid turbo LoRA"
@@ -275,7 +275,7 @@
       "batch_size": 1,
       "strength": 1,
       "control_video": [
-        "4",
+        "41",
         0
       ],
       "control_masks": [
@@ -299,7 +299,7 @@
         0
       ],
       "seed": 42,
-      "steps": 4,
+      "steps": 6,
       "cfg": 1,
       "sampler_name": "uni_pc",
       "scheduler": "simple",
@@ -404,6 +404,41 @@
     },
     "_meta": {
       "title": "Save swapped video"
+    }
+  },
+  "40": {
+    "class_type": "EmptyImage",
+    "inputs": {
+      "width": 480,
+      "height": 480,
+      "batch_size": 1,
+      "color": 8421504
+    },
+    "_meta": {
+      "title": "Neutral grey (0.5)"
+    }
+  },
+  "41": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [
+        "4",
+        0
+      ],
+      "source": [
+        "40",
+        0
+      ],
+      "x": 0,
+      "y": 0,
+      "resize_source": false,
+      "mask": [
+        "12",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Grey out the product region (VACE control)"
     }
   }
 }
