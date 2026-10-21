@@ -99,10 +99,8 @@
     "class_type": "Flux3ImageNode",
     "inputs": {
       "prompt": "Locked 90-degree top-down overhead camera, no tilt, no cut, pale oak desk, even daylight. Using image 1 as the plate, nest the exact product from image 2 into the insert well so it looks physically present: correct contact shadows, a slight paperboard or tissue tuck, matching light. Do not change camera, crop, or the unbranded box. No hands in this frame. No logos, no text, no barcodes, no watermarks, no faces, no torsos.",
-      "images": {
-        "image_1": ["10", 0],
-        "image_2": ["1", 0]
-      },
+      "images.image_1": ["10", 0],
+      "images.image_2": ["1", 0],
       "aspect_ratio": "3:4",
       "resolution": "1K",
       "grounding": false,

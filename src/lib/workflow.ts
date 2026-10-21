@@ -118,7 +118,13 @@ export function applyUnboxing(workflow: Workflow, assets: Record<string, Uploade
     images[`image_${slot}`] = [extra.node, 0];
     slot += 1;
   }
-  flux.inputs.images = images;
+  // Autogrow inputs must be flat "images.image_N" keys. A nested `images`
+  // object is silently ignored, which made FLUX run text-only and invent a product.
+  delete flux.inputs.images;
+  for (const key of Object.keys(flux.inputs)) {
+    if (key.startsWith("images.")) delete flux.inputs[key];
+  }
+  for (const [key, link] of Object.entries(images)) flux.inputs[`images.${key}`] = link;
   flux.inputs.prompt = unboxingNestPrompt(slot - 2);
   ltx.inputs.prompt = unboxingMotionPrompt();
 }
