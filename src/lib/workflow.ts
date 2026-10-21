@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { getBoxPreset, insertPixels } from "@/lib/box-presets";
 import type { AppConfig, ParamSpec } from "@/lib/config";
 import { AppError } from "@/lib/http";
-import { buildPrompt, resolutionValue, type RunParams } from "@/lib/prompts";
+import { buildPrompt, resolutionValue, unboxingMotionPrompt, unboxingNestPrompt, type RunParams } from "@/lib/prompts";
 
 export type WorkflowNode = {
   class_type: string;
@@ -35,6 +36,8 @@ const FILE_NAMES: Record<string, string> = {
   product: "product.png",
   scene: "scene.png",
   user: "user.png",
+  empty: "box_empty.png",
+  lid: "box_lid.png",
 };
 
 export function filePathFor(role: string): string {
@@ -57,6 +60,69 @@ function loadWorkflow(rel: string): Workflow {
   return JSON.parse(readFileSync(resolved, "utf8")) as Workflow;
 }
 
+function writeInput(workflow: Workflow, spec: ParamSpec, value: string | number): void {
+  const targets = [{ node: spec.node, input: spec.input }, ...(spec.also ?? [])];
+  for (const target of targets) {
+    const node = workflow[target.node];
+    if (!node) throw new AppError(500, "internal", `Workflow is missing node ${target.node}.`);
+    node.inputs[target.input] = value;
+  }
+}
+
+function withDescription(template: string, description: string | undefined): string {
+  const detail = description?.trim() ? ` ${description.trim()}` : "";
+  return template.replaceAll("{description}", detail).replace(/\s{2,}/g, " ").trim();
+}
+
+const UNBOXING_EXTRAS: { role: string; node: string }[] = [
+  { role: "product_2", node: "21" },
+  { role: "product_3", node: "22" },
+  { role: "product_4", node: "23" },
+  { role: "product_5", node: "24" },
+];
+
+/** Preset geometry, FLUX reference slots, and the locked overhead prompts. */
+export function applyUnboxing(workflow: Workflow, assets: Record<string, UploadedAsset>, params: RunParams): void {
+  const preset = params.box ? getBoxPreset(params.box) : null;
+  if (!preset) throw new AppError(400, "invalid_input", "Choose a box.");
+  const box = insertPixels(preset);
+  const composite = workflow["10"];
+  const productScale = workflow["5"];
+  const maskScale = workflow["7"];
+  const flux = workflow["11"];
+  const ltx = workflow["13"];
+  if (!composite || !productScale || !maskScale || !flux || !ltx) {
+    throw new AppError(500, "internal", "The unboxing workflow is missing a required node.");
+  }
+  composite.inputs.x = box.x;
+  composite.inputs.y = box.y;
+  productScale.inputs.width = box.width;
+  productScale.inputs.height = box.height;
+  maskScale.inputs.width = box.width;
+  maskScale.inputs.height = box.height;
+
+  const images: Record<string, [string, number]> = {
+    image_1: ["10", 0],
+    image_2: ["1", 0],
+  };
+  let slot = 3;
+  for (const extra of UNBOXING_EXTRAS) {
+    const asset = assets[extra.role];
+    if (!asset) {
+      delete workflow[extra.node];
+      continue;
+    }
+    const node = workflow[extra.node];
+    if (!node) throw new AppError(500, "internal", `Workflow is missing node ${extra.node}.`);
+    node.inputs.image = assetRef(asset.id, asset.filePath);
+    images[`image_${slot}`] = [extra.node, 0];
+    slot += 1;
+  }
+  flux.inputs.images = images;
+  flux.inputs.prompt = unboxingNestPrompt(slot - 2);
+  ltx.inputs.prompt = unboxingMotionPrompt();
+}
+
 function mappedValue(spec: ParamSpec, params: RunParams): string | number {
   const map = spec.map ?? {};
   if (params.scale !== undefined && String(params.scale) in map && spec.input === "scale_by") {
@@ -70,20 +136,26 @@ function mappedValue(spec: ParamSpec, params: RunParams): string | number {
 
 export function applyParams(workflow: Workflow, app: AppConfig, params: RunParams): void {
   for (const [name, spec] of Object.entries(app.params)) {
-    const node = workflow[spec.node];
-    if (!node) {
+    if (!workflow[spec.node]) {
       throw new AppError(500, "internal", `Workflow is missing node ${spec.node}.`);
     }
     if (name === "prompt") {
-      node.inputs[spec.input] = buildPrompt(app, params);
+      writeInput(workflow, spec, buildPrompt(app, params));
+    } else if (name === "positive") {
+      writeInput(workflow, spec, withDescription(spec.template ?? "", params.description));
     } else if (name === "seed") {
-      node.inputs[spec.input] = params.seed ?? 0;
+      writeInput(workflow, spec, params.seed ?? 0);
     } else if (name === "resolution") {
-      node.inputs[spec.input] = resolutionValue(params.resolution, spec.default ?? "2K");
+      writeInput(workflow, spec, resolutionValue(params.resolution, spec.default ?? "2K"));
+    } else if (name === "videoSize") {
+      const map = spec.map ?? {};
+      const key = params.videoSize || spec.default || "";
+      if (!(key in map)) throw new AppError(400, "invalid_input", "Choose 480p or 720p.");
+      writeInput(workflow, spec, map[key]);
     } else if (spec.map) {
-      node.inputs[spec.input] = mappedValue(spec, params);
+      writeInput(workflow, spec, mappedValue(spec, params));
     } else if (spec.default !== undefined) {
-      node.inputs[spec.input] = spec.default;
+      writeInput(workflow, spec, spec.default);
     }
   }
 }
@@ -108,7 +180,16 @@ export function buildJobBody(
     node.inputs[spec.input] = assetRef(asset.id, asset.filePath);
   }
 
+  for (const [role, spec] of Object.entries(app.videoInputs ?? {})) {
+    const asset = assets[role];
+    if (!asset) throw new AppError(400, "invalid_input", "Upload a video of someone holding the product.");
+    const node = workflow[spec.node];
+    if (!node) throw new AppError(500, "internal", `Workflow is missing node ${spec.node}.`);
+    node.inputs[spec.input] = assetRef(asset.id, asset.filePath);
+  }
+
   applyParams(workflow, app, params);
+  if (app.pipeline === "unboxing") applyUnboxing(workflow, assets, params);
 
   const body: JobBody = { workflow };
   if (app.partnerNodes) {

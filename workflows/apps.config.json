@@ -1,5 +1,5 @@
 {
-  "$comment": "App -> workflow layer. Runs go to the per-app host in workflows/deployments.json (override with COMFY_BASE_URL_<SLUG>), not https://cloud.comfy.org. cloudWorkflowId values are only for opening a copy in the Comfy editor. Auth is COMFY_API_KEY, or COMFY_CLOUD_API_KEY if that is the name already set.",
+  "$comment": "App -> workflow layer. Runs go to the per-app host in workflows/deployments.json (override with COMFY_BASE_URL_<SLUG>), not https://cloud.comfy.org. cloudWorkflowId values are only for opening a copy in the Comfy editor. Auth is COMFY_API_KEY, or COMFY_CLOUD_API_KEY if that is the name already set, unless that app's deployment record sets keyEnv. keyEnv apps use only that variable.",
   "account": "personal (JP)",
   "apps": {
     "product-relight": {
@@ -122,6 +122,62 @@
       "params": {},
       "notes": "Output is an RGBA PNG. White / lilac backgrounds are composited client-side on a canvas.",
       "output": { "node": "6" }
+    },
+    "open-product-swap": {
+      "title": "Open Product Swap",
+      "enabled": true,
+      "workflow": "workflows/open-product-swap/workflow_api.json",
+      "cloudWorkflowId": "pending",
+      "cloudWorkflowName": "comfy-api-apps - Open Product Swap",
+      "partnerNodes": true,
+      "imageInputs": {
+        "product": { "node": "6", "input": "image", "maxSide": 1536 }
+      },
+      "videoInputs": {
+        "video": { "node": "1", "input": "file", "maxBytes": 4194304 }
+      },
+      "params": {
+        "prompt": { "node": "8", "input": "prompt", "builtFrom": ["description"] },
+        "positive": {
+          "node": "18",
+          "input": "text",
+          "template": "A person holds the product from the reference image. Photorealistic, matching the original lighting, hands and motion unchanged.{description}"
+        },
+        "seed": { "node": "21", "input": "seed", "also": [{ "node": "8", "input": "seed" }] },
+        "videoSize": {
+          "node": "4",
+          "input": "width",
+          "default": "480p",
+          "map": { "480p": 480, "720p": 720 },
+          "also": [
+            { "node": "4", "input": "height" },
+            { "node": "20", "input": "width" },
+            { "node": "20", "input": "height" }
+          ]
+        }
+      },
+      "promptTemplate": "Replace the product held in image 1 with the product shown in image 2. Keep the person's hands, fingers, pose, clothing, background, camera angle and lighting identical. Seat the new product naturally in the grip with matching perspective, contact shadows and reflections.{description}",
+      "notes": "Source clip is LoadVideo. SKU photo is LoadImage. FLUX 3 edits the first frame. Wan 2.1 VACE inpaints the clip. Output is the SaveVideo node.",
+      "output": { "node": "26", "media": "video" }
+    },
+    "open-unboxing": {
+      "title": "Open Unboxing",
+      "enabled": true,
+      "workflow": "workflows/open-unboxing/workflow_api.json",
+      "cloudWorkflowId": "pending",
+      "cloudWorkflowName": "comfy-api-apps - Open Unboxing",
+      "partnerNodes": true,
+      "pipeline": "unboxing",
+      "imageInputs": {
+        "product": { "node": "1", "input": "image", "maxSide": 1280, "maxCount": 5 },
+        "empty": { "node": "9", "input": "image", "maxSide": 1600, "supplied": "preset-empty" },
+        "lid": { "node": "12", "input": "image", "maxSide": 1600, "supplied": "preset-lid" }
+      },
+      "params": {
+        "seed": { "node": "11", "input": "seed", "also": [{ "node": "13", "input": "seed" }] }
+      },
+      "notes": "One graph: BiRefNet cutout, composite into the preset insert, FLUX 3 nested keyframe, LTX 2.5 first-last frame from the sealed lid, RIFE x2, SaveVideo. Extra product photos are FLUX reference images. Preset stills are uploaded on the server. releaseId in deployments.json is a placeholder.",
+      "output": { "node": "18", "media": "video" }
     }
   }
 }

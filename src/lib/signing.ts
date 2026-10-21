@@ -1,15 +1,17 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { apiKey } from "@/lib/env";
+import { parsePublicRouteId } from "@/lib/ids";
 import type { JobView } from "@/lib/types";
 
-function signingKey(): string {
+function signingKey(assetId: string): string {
   const explicit = process.env.OUTPUT_SIGNING_SECRET?.trim();
   if (explicit) return explicit;
-  return createHash("sha256").update(apiKey() ?? "").digest("hex");
+  const slug = parsePublicRouteId(assetId)?.app;
+  return createHash("sha256").update(apiKey(slug) ?? "").digest("hex");
 }
 
 export function signAssetId(assetId: string): string {
-  return createHmac("sha256", signingKey()).update(assetId).digest("hex");
+  return createHmac("sha256", signingKey(assetId)).update(assetId).digest("hex");
 }
 
 export function verifyAssetSignature(assetId: string, signature: string | null): boolean {

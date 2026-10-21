@@ -6,11 +6,24 @@ export type ImageInputSpec = {
   input: string;
   maxSide: number;
   optional?: boolean;
+  /** More than one file may be posted under this field name. The first wires to `node`. */
+  maxCount?: number;
+  /** Loaded on the server from the preset library. Not accepted from the browser. */
+  supplied?: "preset-empty" | "preset-lid";
+};
+
+export type VideoInputSpec = {
+  node: string;
+  input: string;
+  /** Hard cap. Vercel rejects request bodies around 4.5 MB. */
+  maxBytes?: number;
 };
 
 export type ParamSpec = {
   node: string;
   input: string;
+  /** Same value is also written to these inputs. */
+  also?: { node: string; input: string }[];
   builtFrom?: string[];
   map?: Record<string, string | number>;
   default?: string;
@@ -27,6 +40,9 @@ export type AppConfig = {
   cloudWorkflowName: string;
   partnerNodes: boolean;
   imageInputs: Record<string, ImageInputSpec>;
+  videoInputs?: Record<string, VideoInputSpec>;
+  /** One-graph pipelines that need extra server-side wiring. */
+  pipeline?: "unboxing";
   params: Record<string, ParamSpec>;
   presets?: Record<string, string>;
   intensityWords?: Record<string, string>;
@@ -35,7 +51,7 @@ export type AppConfig = {
   styles?: Record<string, string>;
   motions?: Record<string, string>;
   notes?: string;
-  output: { node: string };
+  output: { node: string; media?: "image" | "video" };
 };
 
 export type AppsConfig = {

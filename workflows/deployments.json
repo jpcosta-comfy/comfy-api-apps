@@ -1,5 +1,5 @@
 {
-  "$comment": "Personal Comfy API deployments (account: personal, GPU rtx-pro-6000-server, region us, min 0 / max 1). Each app submits Comfy API v2 to its own https://<deployment>.run.comfy.app host. These defaults match the personal endpoint list. Override one host with the env var in `env` (Preview/Production). Do not point an app at https://cloud.comfy.org. COMFY_CLOUD_BASE_URL is ignored.",
+  "$comment": "Personal Comfy API deployments (account: personal, GPU rtx-pro-6000-server, region us, min 0 / max 1). Each app submits Comfy API v2 to its own https://<deployment>.run.comfy.app host. These defaults match the personal endpoint list. Override one host with the env var in `env` (Preview/Production). Do not point an app at https://cloud.comfy.org. COMFY_CLOUD_BASE_URL is ignored. Apps with keyEnv authenticate with only that variable (no fallback to COMFY_API_KEY). Open Product Swap and Open Unboxing live in the work-personal workspace.",
   "account": "personal",
   "gpu": "rtx-pro-6000-server",
   "region": "us",
@@ -48,6 +48,22 @@
       "endpointUrl": "https://dep-be6a6286-e47c-4e0f-b9fc-8fad55236367.run.comfy.app",
       "releaseId": "6acb3e92-d9c7-4a15-8f32-a2ba420f139f",
       "env": "COMFY_BASE_URL_PAPARAZZI_ME"
+    },
+    "open-product-swap": {
+      "deploymentId": "dep-c6eae195-e598-4f43-8928-00cb4aa3c2d7",
+      "endpointUrl": "https://dep-c6eae195-e598-4f43-8928-00cb4aa3c2d7.run.comfy.app",
+      "releaseId": "f709c8b1-b6a6-49c3-980b-114a03f160ba",
+      "env": "COMFY_BASE_URL_OPEN_PRODUCT_SWAP",
+      "keyEnv": "COMFY_API_KEY_WORK_PERSONAL",
+      "note": "Work-personal workspace. Auth is only COMFY_API_KEY_WORK_PERSONAL."
+    },
+    "open-unboxing": {
+      "deploymentId": "dep-727f285f-f3d8-4348-8378-eacd314ebb58",
+      "endpointUrl": "https://dep-727f285f-f3d8-4348-8378-eacd314ebb58.run.comfy.app",
+      "releaseId": "pending",
+      "env": "COMFY_BASE_URL_OPEN_UNBOXING",
+      "keyEnv": "COMFY_API_KEY_WORK_PERSONAL",
+      "note": "Work-personal workspace. releaseId is a placeholder to fill in after the release is published. Auth is only COMFY_API_KEY_WORK_PERSONAL."
     }
   }
 }

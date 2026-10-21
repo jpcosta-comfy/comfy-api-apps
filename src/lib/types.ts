@@ -73,12 +73,25 @@ export type TextControl = {
   clientOnly?: boolean;
 };
 
-export type ClientControl = SegControl | SelectControl | SliderControl | TextControl;
+export type CardsControl = {
+  type: "cards";
+  key: string;
+  label: string;
+  options: { value: string; label: string; image: string }[];
+  default: string;
+  hint?: string;
+};
+
+export type ClientControl = SegControl | SelectControl | SliderControl | TextControl | CardsControl;
 
 export type CatalogImage = {
   key: string;
   label: string;
   optional?: boolean;
+  accept?: "image" | "video";
+  multiple?: boolean;
+  maxCount?: number;
+  hint?: string;
 };
 
 export type SpriteGrid = {
@@ -93,13 +106,17 @@ export type CatalogApp = {
   runLabel: string;
   endpoint: string;
   views: string[];
-  kind: "relight" | "upscale" | "sprite" | "tryon" | "cutout" | "swap" | "paparazzi";
+  kind: "relight" | "upscale" | "sprite" | "tryon" | "cutout" | "swap" | "paparazzi" | "product-swap" | "unboxing";
   images: CatalogImage[];
   controls: ClientControl[];
   hasSeed: boolean;
   empty: string;
   tagline?: string;
   grids?: Record<string, SpriteGrid>;
+  /** image still, or an mp4 the result viewer plays. */
+  output: "image" | "video";
+  /** How long the browser keeps polling. Video jobs use 15 minutes. */
+  pollMs: number;
 };
 
 export const LILAC = "#DBD6F2";

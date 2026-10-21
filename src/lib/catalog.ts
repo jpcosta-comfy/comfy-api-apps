@@ -1,17 +1,30 @@
+import { listBoxPresets } from "@/lib/box-presets";
 import {
   BACKGROUND_OPTIONS,
   DIRECTION_OPTIONS,
   FIT_OPTIONS,
   FORMAT_OPTIONS,
   RESOLUTION_OPTIONS,
+  VIDEO_SIZE_OPTIONS,
 } from "@/lib/choices";
 import { getApp, listVisibleAppIds, type AppConfig } from "@/lib/config";
 import type { CatalogApp, ClientControl, SpriteGrid } from "@/lib/types";
 
+const VIDEO_POLL_MS = 15 * 60 * 1000;
+const IMAGE_POLL_MS = 8 * 60 * 1000;
+
 const CHROME: Record<
   string,
   Pick<CatalogApp, "name" | "icon" | "runLabel" | "views" | "kind" | "empty" | "tagline"> & {
-    images: { key: string; label: string; optional?: boolean }[];
+    images: {
+      key: string;
+      label: string;
+      optional?: boolean;
+      accept?: "image" | "video";
+      multiple?: boolean;
+      maxCount?: number;
+      hint?: string;
+    }[];
   }
 > = {
   "product-relight": {
@@ -87,6 +100,42 @@ const CHROME: Record<
     kind: "cutout",
     empty: "Upload an image to get started",
     images: [{ key: "image", label: "Input" }],
+  },
+  "open-product-swap": {
+    icon: "reel",
+    name: "Open Product Swap",
+    tagline: "Same hands and motion, new product",
+    runLabel: "Swap product",
+    views: ["Result"],
+    kind: "product-swap",
+    empty: "Upload a clip and a product photo",
+    images: [
+      {
+        key: "video",
+        label: "Clip",
+        accept: "video",
+        hint: "MP4, MOV, or WebM. Trim it to 4 MB or less — larger uploads are rejected.",
+      },
+      { key: "product", label: "Product" },
+    ],
+  },
+  "open-unboxing": {
+    icon: "box",
+    name: "Open Unboxing",
+    tagline: "Overhead unboxing from a product photo",
+    runLabel: "Unbox",
+    views: ["Result"],
+    kind: "unboxing",
+    empty: "Add product photos and pick a box",
+    images: [
+      {
+        key: "product",
+        label: "Product photos",
+        multiple: true,
+        maxCount: 5,
+        hint: "1 to 5 angles. Photos are resized so the upload stays under 4 MB.",
+      },
+    ],
   },
 };
 
@@ -217,6 +266,39 @@ function controlsFor(id: string, app: AppConfig): ClientControl[] {
         : []),
     ];
   }
+  if (id === "open-product-swap") {
+    return [
+      {
+        type: "text",
+        key: "description",
+        label: "Product",
+        placeholder: "e.g. matte ginger bottle",
+        default: "",
+        multiline: false,
+        optional: true,
+        hint: "A few words about the product. Optional.",
+      },
+      {
+        type: "seg",
+        key: "videoSize",
+        label: "Resolution",
+        options: VIDEO_SIZE_OPTIONS.map((option) => ({ ...option })),
+        default: app.params.videoSize?.default ?? "480p",
+      },
+    ];
+  }
+  if (id === "open-unboxing") {
+    return [
+      {
+        type: "cards",
+        key: "box",
+        label: "Box",
+        options: listBoxPresets().map((preset) => ({ value: preset.id, label: preset.label, image: preset.thumb })),
+        default: "kraft_mailer",
+        hint: "The sealed lid opens onto this empty insert. The camera stays locked overhead.",
+      },
+    ];
+  }
   if (id === "background-removal") {
     return [
       {
@@ -254,6 +336,7 @@ export function buildCatalog(): CatalogApp[] {
     const grids = app.grids
       ? Object.fromEntries(Object.entries(app.grids).map(([frames, label]) => [frames, parseGrid(label)]))
       : undefined;
+    const output = app.output.media === "video" ? "video" : "image";
     return {
       id,
       ...chrome,
@@ -262,6 +345,8 @@ export function buildCatalog(): CatalogApp[] {
       hasSeed: Boolean(app.params.seed),
       endpoint: `/api/run/${id}`,
       grids,
+      output,
+      pollMs: output === "video" ? VIDEO_POLL_MS : IMAGE_POLL_MS,
     };
   });
 }

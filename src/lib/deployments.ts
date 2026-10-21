@@ -8,6 +8,11 @@ export type DeploymentRecord = {
   endpointUrl: string;
   releaseId: string;
   env: string;
+  /**
+   * When set, this app authenticates with only this env var.
+   * There is no fallback to COMFY_API_KEY or COMFY_CLOUD_API_KEY.
+   */
+  keyEnv?: string;
   note?: string;
 };
 
@@ -41,6 +46,13 @@ export function loadDeployments(): DeploymentsFile {
       const expectedEnv = deploymentEnvName(slug);
       if (record.env !== expectedEnv) {
         throw new AppError(500, "invalid_deployment", `workflows/deployments.json env for ${slug} must be ${expectedEnv}.`);
+      }
+      if (record.keyEnv !== undefined && !/^COMFY_API_KEY_[A-Z0-9_]+$/.test(record.keyEnv)) {
+        throw new AppError(
+          500,
+          "invalid_deployment",
+          `workflows/deployments.json keyEnv for ${slug} must look like COMFY_API_KEY_WORK_PERSONAL.`,
+        );
       }
       assertDeploymentUrl(record.endpointUrl, slug, "checked-in deployment");
     }

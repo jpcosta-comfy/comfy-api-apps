@@ -1,4 +1,4 @@
-import { deploymentFailureMessage, deploymentUnavailableMessage, type DeploymentTarget } from "@/lib/deployments";
+import { deploymentFailureMessage, deploymentUnavailableMessage, getDeployment, type DeploymentTarget } from "@/lib/deployments";
 import { apiKey, missingKeyMessage } from "@/lib/env";
 import { AppError } from "@/lib/http";
 import type { JobBody } from "@/lib/workflow";
@@ -39,9 +39,15 @@ type RawJob = {
   error?: { code?: string; message?: string } | null;
 };
 
+function rejectedKeyMessage(slug: string): string {
+  const name = getDeployment(slug)?.keyEnv?.trim();
+  if (name) return `The Comfy API key was rejected. Check ${name} on the server.`;
+  return "The Comfy API key was rejected. Check COMFY_API_KEY (or COMFY_CLOUD_API_KEY) on the server.";
+}
+
 async function comfyFetch(target: DeploymentTarget, pathname: string, init: RequestInit, timeoutMs: number): Promise<Response> {
-  const key = apiKey();
-  if (!key) throw new AppError(500, "missing_key", missingKeyMessage());
+  const key = apiKey(target.slug);
+  if (!key) throw new AppError(500, "missing_key", missingKeyMessage(target.slug));
   try {
     return await fetch(`${target.baseUrl}${pathname}`, {
       ...init,
@@ -82,7 +88,7 @@ async function throwEnvelope(target: DeploymentTarget, res: Response): Promise<n
     throw new AppError(status, code === "deployment_stopped" ? code : "deployment_not_ready", lifecycle);
   }
   if (code === "unauthorized" || res.status === 401) {
-    throw new AppError(401, "unauthorized", "The Comfy API key was rejected. Check COMFY_API_KEY (or COMFY_CLOUD_API_KEY) on the server.");
+    throw new AppError(401, "unauthorized", rejectedKeyMessage(target.slug));
   }
 
   const status = res.status >= 400 && res.status < 600 ? res.status : 502;
@@ -90,17 +96,22 @@ async function throwEnvelope(target: DeploymentTarget, res: Response): Promise<n
 }
 
 /** Multipart field order is required. The deployment returns 422 if `file` precedes `content_type`. */
-export function buildAssetForm(png: Buffer, filePath: string): FormData {
+export function buildAssetForm(bytes: Buffer, filePath: string, contentType = "image/png"): FormData {
   const form = new FormData();
-  form.append("content_type", "image/png");
+  form.append("content_type", contentType);
   form.append("file_path", filePath);
   form.append("tags", JSON.stringify(["input"]));
-  form.append("file", new Blob([new Uint8Array(png)], { type: "image/png" }), filePath);
+  form.append("file", new Blob([new Uint8Array(bytes)], { type: contentType }), filePath);
   return form;
 }
 
-export async function uploadAsset(target: DeploymentTarget, png: Buffer, filePath: string): Promise<string> {
-  const form = buildAssetForm(png, filePath);
+export async function uploadAsset(
+  target: DeploymentTarget,
+  bytes: Buffer,
+  filePath: string,
+  contentType = "image/png",
+): Promise<string> {
+  const form = buildAssetForm(bytes, filePath, contentType);
   const res = await comfyFetch(target, "/api/v2/assets", { method: "POST", body: form }, 60_000);
   if (!res.ok) await throwEnvelope(target, res);
   const asset = (await res.json()) as AssetRecord;

@@ -1,6 +1,6 @@
 # Comfy API Apps
 
-Sprite sheets, virtual try-on, hand product swap, paparazzi inserts, and background removal, each running a real ComfyUI workflow on its own personal Comfy API deployment. The API key stays on the server.
+Sprite sheets, virtual try-on, hand product swap, paparazzi inserts, background removal, an open product-swap video, and an overhead unboxing, each running a real ComfyUI workflow on its own Comfy API deployment. API keys stay on the server.
 
 Live: [comfy-api-apps.vercel.app](https://comfy-api-apps.vercel.app/)
 
@@ -13,19 +13,21 @@ Live: [comfy-api-apps.vercel.app](https://comfy-api-apps.vercel.app/)
 | Hand product swap | Upload a hand photo and a product. Same hand and grip, new product. Resolution is 1K, 2K, or 4K. | Nano Banana Pro (Gemini) | [hand-product-swap](https://dep-9a807afc-d80c-43de-adc4-d0eee9a73655.run.comfy.app) |
 | Paparazzi Me | Type a celebrity name and upload your face. The server searches for a paparazzi photo (or you pick one). A scene upload is an optional override. Resolution is 1K, 2K, or 4K. | Nano Banana Pro (Gemini) | [paparazzi-me](https://dep-be6a6286-e47c-4e0f-b9fc-8fad55236367.run.comfy.app) |
 | Background removal | Upload a photo. Choose transparent, white, or lilac, then PNG or WebP. | BiRefNet. White, lilac, and WebP are composited in the browser. | [background-removal](https://dep-e45cb437-0991-4689-9f7c-77d5748e3adc.run.comfy.app) |
+| Open Product Swap | Upload a short clip of someone holding a product, plus a product photo. Optional product note. Resolution is 480p or 720p. | Wan 2.1 VACE plus FLUX 3. Output is an mp4. | [open-product-swap](https://dep-c6eae195-e598-4f43-8928-00cb4aa3c2d7.run.comfy.app) |
+| Open Unboxing | Upload 1–5 product photos and pick a preset box. | BiRefNet cutout, FLUX 3 nested keyframe, LTX 2.5 first-last frame, RIFE ×2. Output is an mp4. | [open-unboxing](https://dep-727f285f-f3d8-4348-8378-eacd314ebb58.run.comfy.app) |
 
-The hosts above are the defaults in `workflows/deployments.json`. Workers are `--min 0 --max 1`, and only 3 deployments can be active at once, so a host may be stopped or still cold-starting.
+The hosts above are the defaults in `workflows/deployments.json`. Workers are `--min 0 --max 1`, and only 3 deployments can be active at once, so a host may be stopped or still cold-starting. Open Product Swap and Open Unboxing use a different Comfy workspace. Their release for unboxing is still the placeholder `pending`.
 
 ## How a run works
 
-1. The browser posts the image to `POST /api/run/[app]`. The server accepts png, jpg, or webp up to 15 MB, applies EXIF rotation, and resizes to that app's `maxSide` in `workflows/apps.config.json`. Paparazzi Me can omit the scene file: `GET /api/paparazzi/search?q=` returns signed scene choices, and the run downloads the chosen photo (or the best match for the celebrity name) before upload. A scene file overrides that search. The celebrity name is not sent to the workflow.
-2. It uploads the PNG to that app's deployment with `POST /api/v2/assets`. The multipart fields go in this order: `content_type` (`image/png`), `file_path`, `tags` (`["input"]` as a JSON string), then `file`. Putting `file` first returns HTTP 422 `invalid_body`.
-3. `workflow_api.json` receives the asset id on each LoadImage, plus the prompt and seed from the controls.
-4. `POST /api/v2/jobs` on the same host, with an `Idempotency-Key`. Sprite sheet generator, Virtual try-on, Hand product swap, and Paparazzi Me also send `extra_data.api_key_comfy_org` using the server key. Partner jobs use credits.
-5. The browser polls `GET /api/jobs/{app}~{jobId}` for up to 8 minutes. The app slug picks the deployment.
-6. Downloads go through `GET /api/outputs/{app}~{assetId}?sig=...`. The signature is checked, then the server loads a short-lived URL (about 6 hours) and streams the bytes.
+1. The browser posts the form to `POST /api/run/[app]`. Images are png, jpg, or webp up to 15 MB. The server applies EXIF rotation and resizes to that app's `maxSide` in `workflows/apps.config.json`. Open Product Swap also takes one MP4, MOV, or WebM up to 4 MB (the whole form must stay under about 4.5 MB). Open Unboxing takes 1–5 product photos; the browser shrinks them so the form stays under 4 MB, and the server uploads the chosen preset's empty and lid-on stills itself. Paparazzi Me can omit the scene file: `GET /api/paparazzi/search?q=` returns signed scene choices, and the run downloads the chosen photo (or the best match for the celebrity name) before upload. A scene file overrides that search. The celebrity name is not sent to the workflow.
+2. It uploads each file to that app's deployment with `POST /api/v2/assets`. The multipart fields go in this order: `content_type` (`image/png`, or `video/mp4` / `video/quicktime` / `video/webm`), `file_path`, `tags` (`["input"]` as a JSON string), then `file`. Putting `file` first returns HTTP 422 `invalid_body`.
+3. `workflow_api.json` receives the asset id on each LoadImage or LoadVideo, plus the prompt and seed from the controls. Open Unboxing also patches the insert box from the preset.
+4. `POST /api/v2/jobs` on the same host, with an `Idempotency-Key`. Sprite sheet generator, Virtual try-on, Hand product swap, and Paparazzi Me send `extra_data.api_key_comfy_org` from `COMFY_API_KEY` (or `COMFY_CLOUD_API_KEY`). Open Product Swap and Open Unboxing send that field from `COMFY_API_KEY_WORK_PERSONAL` only. Partner jobs use credits.
+5. The browser polls `GET /api/jobs/{app}~{jobId}`. Image apps wait up to 8 minutes. Open Product Swap and Open Unboxing wait up to 15 minutes and say when a cold start is likely. The app slug picks the deployment.
+6. Downloads go through `GET /api/outputs/{app}~{assetId}?sig=...`. The signature is checked, then the server loads a short-lived URL (about 6 hours) and streams the bytes. Video results play in the page and download as mp4 or webm.
 
-Every call to a deployment sends `Authorization: Bearer` and the server key.
+Every call to a deployment sends `Authorization: Bearer` and that deployment's key. A record with `keyEnv` never falls back to `COMFY_API_KEY`.
 
 A stopped deployment (`deployment_stopped`, 422) needs `comfy deploy start` before another run will go through. A cold start (`deployment_not_ready`, 429) means wait, then run again.
 
@@ -35,8 +37,9 @@ Server only. Locally that is `.env.local`. On Vercel, project `comfy-api-apps`, 
 
 | Name | Required | Notes |
 |---|---|---|
-| `COMFY_API_KEY` | yes, unless the alias below is set | Personal Comfy platform key. Preferred name. |
-| `COMFY_CLOUD_API_KEY` | alias | Read when `COMFY_API_KEY` is unset. If both are set, `COMFY_API_KEY` wins. This is the key sent for partner nodes. |
+| `COMFY_API_KEY` | yes for the shared apps, unless the alias below is set | Personal Comfy platform key. Preferred name. |
+| `COMFY_CLOUD_API_KEY` | alias | Read when `COMFY_API_KEY` is unset. If both are set, `COMFY_API_KEY` wins. This is the key sent for partner nodes on the shared apps. |
+| `COMFY_API_KEY_WORK_PERSONAL` | yes for Open Product Swap and Open Unboxing | The only key those two apps use. A missing value is a `missing_key` error. It is not a fallback, and the shared key is not used in its place. |
 | `COMFY_BASE_URL_SPRITE_GENERATOR` | no | Override for that app. Default is in `workflows/deployments.json`. |
 | `COMFY_BASE_URL_VIRTUAL_TRY_ON` | no | Same. |
 | `COMFY_BASE_URL_HAND_PRODUCT_SWAP` | no | Same. Default host is `https://dep-9a807afc-d80c-43de-adc4-d0eee9a73655.run.comfy.app`. |
@@ -46,8 +49,10 @@ Server only. Locally that is `.env.local`. On Vercel, project `comfy-api-apps`, 
 | `GOOGLE_CSE_CX` | no | Google Programmable Search engine id (`searchType=image`). |
 | `BING_IMAGE_SEARCH_KEY` | no | Bing Image Search subscription key. Used when the keys above are unset. |
 | `COMFY_BASE_URL_BACKGROUND_REMOVAL` | no | Same. |
-| `COMFY_MOCK` | no | `1` returns sample images and skips the deployments. Leave unset for live runs. Celebrity search still runs. |
-| `OUTPUT_SIGNING_SECRET` | no | HMAC for download links. If unset, SHA-256 of the API key. |
+| `COMFY_BASE_URL_OPEN_PRODUCT_SWAP` | no | Same. Default host is `https://dep-c6eae195-e598-4f43-8928-00cb4aa3c2d7.run.comfy.app`. |
+| `COMFY_BASE_URL_OPEN_UNBOXING` | no | Same. Default host is `https://dep-727f285f-f3d8-4348-8378-eacd314ebb58.run.comfy.app`. |
+| `COMFY_MOCK` | no | `1` returns sample images and skips the deployments. Leave unset for live runs. Celebrity search still runs. Video apps return a still in mock mode. |
+| `OUTPUT_SIGNING_SECRET` | no | HMAC for download links. If unset, SHA-256 of the key for that output's app (`keyEnv` when the deployment sets one, otherwise `COMFY_API_KEY`, else `COMFY_CLOUD_API_KEY`). |
 
 Copy `.env.example` to `.env.local` and paste the key.
 
@@ -67,10 +72,11 @@ npm run build
 ## Layout
 
 ```
-workflows/deployments.json          deployment id, release id, endpoint, env var
+workflows/deployments.json          deployment id, release id, endpoint, env var, optional keyEnv
 workflows/apps.config.json          app → workflow, inputs, prompt templates
 workflows/<app>/workflow_api.json   graph submitted to that deployment
 workflows/<app>/README.md           node map
+public/presets/                     unboxing box stills and card thumbnails
 src/app/api/run/[app]               validate, resize, upload, submit
 src/app/api/jobs/[id]               poll the deployment named in the id
 src/app/api/outputs/[assetId]       stream the output after checking sig
@@ -81,6 +87,6 @@ src/                                Next.js App Router UI
 
 `main` on `jpcosta-comfy/comfy-api-apps` deploys to the Vercel project `comfy-api-apps`.
 
-Set `COMFY_API_KEY` or `COMFY_CLOUD_API_KEY` for Production and Preview, then redeploy. Leave the `COMFY_BASE_URL_*` variables unset unless that environment should call a different host than `workflows/deployments.json`. Leave `COMFY_MOCK` unset for live runs. Set `OUTPUT_SIGNING_SECRET` when download links should stay valid after the API key changes.
+Set `COMFY_API_KEY` or `COMFY_CLOUD_API_KEY` for Production and Preview, then redeploy. Also set `COMFY_API_KEY_WORK_PERSONAL` or Open Product Swap and Open Unboxing stay offline. Leave the `COMFY_BASE_URL_*` variables unset unless that environment should call a different host than `workflows/deployments.json`. Leave `COMFY_MOCK` unset for live runs. Set `OUTPUT_SIGNING_SECRET` when download links should stay valid after an API key changes.
 
-The browser resizes uploads to 2048 px before POST so they stay under the Vercel body limit. The server still checks type, the 15 MB cap, EXIF orientation, and each app's `maxSide`.
+The browser resizes image uploads before POST so they stay under the Vercel body limit (2048 px on image apps, smaller when several photos or a video share the form). Video clips are not transcoded. Trim them to 4 MB. The server still checks type, the 15 MB image cap, the 4 MB video cap, the 4.5 MB combined body, EXIF orientation, and each app's `maxSide`. Drag a file onto any upload zone, or click it.
