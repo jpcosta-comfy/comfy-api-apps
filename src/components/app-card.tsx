@@ -870,15 +870,29 @@ function statusLine(
 
 function measureBlob(url: string, video: boolean): Promise<{ width: number; height: number }> {
   if (video) {
+    // Detached <video> elements may never fire loadedmetadata (Safari/iOS, background tabs),
+    // which used to leave a finished job stuck on "running". Never wait more than a few seconds.
     return new Promise((resolve) => {
+      let settled = false;
+      const done = (size: { width: number; height: number }) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timer);
+        resolve(size);
+      };
+      const timer = window.setTimeout(() => done({ width: 0, height: 0 }), 4000);
       const el = document.createElement("video");
+      el.muted = true;
+      el.playsInline = true;
       el.preload = "metadata";
-      el.onloadedmetadata = () => resolve({ width: el.videoWidth, height: el.videoHeight });
-      el.onerror = () => resolve({ width: 0, height: 0 });
+      el.onloadedmetadata = () => done({ width: el.videoWidth, height: el.videoHeight });
+      el.onerror = () => done({ width: 0, height: 0 });
       el.src = url;
+      el.load();
     });
   }
   return new Promise((resolve) => {
+    window.setTimeout(() => resolve({ width: 0, height: 0 }), 8000);
     const img = new Image();
     img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
     img.onerror = () => resolve({ width: 0, height: 0 });
