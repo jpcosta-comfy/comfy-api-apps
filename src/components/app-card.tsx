@@ -280,6 +280,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
         if (app.kind === "sprite") return "Upload a character image.";
         if (app.kind === "product-swap") return "Upload a clip and a product photo.";
         if (app.kind === "unboxing") return "Add at least one product photo.";
+        if (app.kind === "carve") return "Upload an image to carve.";
         return "Upload an image first.";
       }
     }
@@ -323,6 +324,7 @@ export function AppCard({ app }: { app: CatalogApp }) {
       const label = option && option.type === "cards" ? option.options.find((item) => item.value === box)?.label : box;
       return label || "Box";
     }
+    if (app.kind === "carve") return "9:16 timelapse";
     if (app.kind === "paparazzi") {
       const name = controlValue(next, "celebrity").trim();
       const resolution = controlValue(next, "resolution") || "2K";

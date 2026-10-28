@@ -55,6 +55,7 @@ const EXPECTED_ENDPOINTS: Record<string, string> = {
   "paparazzi-me": "https://dep-be6a6286-e47c-4e0f-b9fc-8fad55236367.run.comfy.app",
   "open-product-swap": "https://dep-c6eae195-e598-4f43-8928-00cb4aa3c2d7.run.comfy.app",
   "open-unboxing": "https://dep-727f285f-f3d8-4348-8378-eacd314ebb58.run.comfy.app",
+  "pumpkin-carve": "https://dep-480af229-63d7-4022-9bdc-2dd20c2ffc9f.run.comfy.app",
 };
 
 const deploymentEnvNames = Object.keys(EXPECTED_ENDPOINTS).map(deploymentEnvName);
@@ -72,6 +73,7 @@ assert.deepEqual(listVisibleAppIds(), [
   "background-removal",
   "open-product-swap",
   "open-unboxing",
+  "pumpkin-carve",
 ]);
 assert.deepEqual(
   buildCatalog().map((app) => app.id),
@@ -83,6 +85,7 @@ assert.deepEqual(
     "background-removal",
     "open-product-swap",
     "open-unboxing",
+    "pumpkin-carve",
   ],
 );
 const swapCatalog = buildCatalog().find((app) => app.id === "hand-product-swap");
@@ -121,6 +124,21 @@ assert.equal(unboxingCatalog?.images[0]?.maxCount, 5);
 const boxControl = unboxingCatalog?.controls.find((control) => control.key === "box");
 assert.equal(boxControl?.type, "cards");
 assert.equal(boxControl && boxControl.type === "cards" ? boxControl.options.length : 0, 3);
+const carveCatalog = buildCatalog().find((app) => app.id === "pumpkin-carve");
+assert.equal(carveCatalog?.name, "Pumpkin Carve");
+assert.equal(carveCatalog?.tagline, "Carve a photo into a Halloween timelapse");
+assert.equal(carveCatalog?.kind, "carve");
+assert.equal(carveCatalog?.icon, "pumpkin");
+assert.equal(carveCatalog?.output, "video");
+assert.equal(carveCatalog?.pollMs, 15 * 60 * 1000);
+assert.equal(carveCatalog?.runLabel, "Carve");
+assert.equal(carveCatalog?.views.join(","), "Result");
+assert.deepEqual(
+  carveCatalog?.images.map((image) => image.key),
+  ["image"],
+);
+assert.equal(carveCatalog?.hasSeed, true);
+assert.equal(carveCatalog?.controls.length, 0);
 const paparazziCatalog = buildCatalog().find((app) => app.id === "paparazzi-me");
 assert.equal(paparazziCatalog?.name, "Paparazzi Me");
 assert.equal(paparazziCatalog?.tagline, "Insert yourself into a paparazzi shot");
@@ -148,9 +166,15 @@ assert.equal(getApp("sprite-generator")?.enabled, true);
 assert.equal(getApp("open-product-swap")?.enabled, true);
 assert.equal(getApp("open-unboxing")?.enabled, true);
 assert.equal(getApp("open-unboxing")?.partnerNodes, true);
+assert.equal(getApp("pumpkin-carve")?.enabled, true);
+assert.equal(getApp("pumpkin-carve")?.partnerNodes, true);
+assert.equal(getApp("pumpkin-carve")?.output.node, "50");
+assert.equal(getApp("pumpkin-carve")?.output.media, "video");
 assert.equal(getDeployment("open-product-swap")?.keyEnv, "COMFY_API_KEY_WORK_PERSONAL");
 assert.equal(getDeployment("open-unboxing")?.keyEnv, "COMFY_API_KEY_WORK_PERSONAL");
-assert.equal(getDeployment("open-unboxing")?.releaseId, "pending");
+assert.equal(getDeployment("pumpkin-carve")?.keyEnv, "COMFY_API_KEY_TEAM");
+assert.equal(getDeployment("pumpkin-carve")?.releaseId, "87486a19-62f1-40e4-a423-3563387e31d4");
+assert.equal(getDeployment("open-unboxing")?.releaseId, "69e82472-1206-473f-851e-286c5fcb2480");
 assert.equal(getDeployment("hand-product-swap")?.keyEnv, undefined);
 assert.equal(getDeployment("open-product-swap")?.releaseId, "f709c8b1-b6a6-49c3-980b-114a03f160ba");
 assert.deepEqual([...listDeploymentSlugs()].sort(), Object.keys(EXPECTED_ENDPOINTS).sort());
@@ -203,6 +227,7 @@ const paparazzi = mustApp("paparazzi-me");
 const cutout = mustApp("background-removal");
 const productSwap = mustApp("open-product-swap");
 const unboxing = mustApp("open-unboxing");
+const carve = mustApp("pumpkin-carve");
 
 const words = relight.intensityWords!;
 assert.equal(intensityWord(0, words), "subtle");
@@ -434,11 +459,11 @@ assert.equal(boxJob.workflow["5"].inputs.width, 413);
 assert.equal(boxJob.workflow["5"].inputs.height, 322);
 assert.equal(boxJob.workflow["7"].inputs.width, 413);
 assert.equal(boxJob.workflow["7"].inputs.height, 322);
-const fluxImages = boxJob.workflow["11"].inputs.images as Record<string, [string, number]>;
-assert.deepEqual(fluxImages.image_1, ["10", 0]);
-assert.deepEqual(fluxImages.image_2, ["1", 0]);
-assert.deepEqual(fluxImages.image_3, ["21", 0]);
-assert.equal(fluxImages.image_4, undefined);
+assert.equal(boxJob.workflow["11"].inputs.images, undefined);
+assert.deepEqual(boxJob.workflow["11"].inputs["images.image_1"], ["10", 0]);
+assert.deepEqual(boxJob.workflow["11"].inputs["images.image_2"], ["1", 0]);
+assert.deepEqual(boxJob.workflow["11"].inputs["images.image_3"], ["21", 0]);
+assert.equal(boxJob.workflow["11"].inputs["images.image_4"], undefined);
 assert.equal(boxJob.workflow["22"], undefined);
 assert.equal(boxJob.workflow["23"], undefined);
 assert.equal(boxJob.workflow["24"], undefined);
@@ -457,10 +482,31 @@ const solo = buildJobBody(
   { box: "kraft_mailer", seed: 1, hasImage: true },
   null,
 );
-assert.equal((solo.workflow["11"].inputs.images as Record<string, unknown>).image_3, undefined);
+assert.equal(solo.workflow["11"].inputs["images.image_3"], undefined);
 assert.equal(solo.workflow["21"], undefined);
 assert.equal(solo.extra_data?.api_key_comfy_org, "");
 assert.equal(String(solo.workflow["11"].inputs.prompt).includes("Images 3"), false);
+
+const carveJob = buildJobBody(
+  carve,
+  { image: { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", filePath: "input.png" } },
+  { seed: 11, hasImage: true },
+  "team-key",
+);
+assert.equal(carveJob.workflow["10"].class_type, "LoadImage");
+assert.deepEqual(carveJob.workflow["10"].inputs.image, {
+  __type: "core/ASSET",
+  info: { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", file_path: "input.png" },
+});
+assert.equal(carveJob.workflow["30"].inputs.seed, 11);
+assert.equal(carveJob.workflow["40"].inputs.seed, 11);
+assert.equal(carveJob.workflow["20"].inputs["model.seed"], 11);
+assert.deepEqual(carveJob.workflow["30"].inputs.images, ["10", 0]);
+assert.equal(carveJob.workflow["21"].class_type, "SaveSVGNode");
+assert.equal(carveJob.workflow["50"].class_type, "SaveVideo");
+assert.equal(carveJob.extra_data?.api_key_comfy_org, "team-key");
+assert.match(String(carveJob.workflow["30"].inputs.prompt), /pumpkin/i);
+assert.equal(JSON.stringify(carveJob.workflow["30"].inputs).includes("21"), false);
 
 assert.throws(() => buildPrompt(relight, { preset: "nope", direction: "left", intensity: 10 }), /preset/i);
 
@@ -502,6 +548,16 @@ assert.equal(apiKey("open-product-swap"), "work-key");
 assert.equal(apiKey("open-unboxing"), "work-key");
 assert.equal(apiKey("hand-product-swap"), "shared-key");
 assert.equal(apiKey(), "shared-key");
+const savedTeamKey = process.env.COMFY_API_KEY_TEAM;
+process.env.COMFY_API_KEY_TEAM = "team-key";
+assert.equal(apiKey("pumpkin-carve"), "team-key");
+assert.equal(apiKey("hand-product-swap"), "shared-key");
+delete process.env.COMFY_API_KEY_TEAM;
+assert.equal(apiKey("pumpkin-carve"), null);
+assert.match(missingKeyMessage("pumpkin-carve"), /COMFY_API_KEY_TEAM/);
+assert.equal(missingKeyMessage("pumpkin-carve").includes("COMFY_API_KEY or"), false);
+if (savedTeamKey === undefined) delete process.env.COMFY_API_KEY_TEAM;
+else process.env.COMFY_API_KEY_TEAM = savedTeamKey;
 delete process.env.COMFY_API_KEY_WORK_PERSONAL;
 assert.equal(apiKey("open-product-swap"), null);
 assert.equal(apiKey("hand-product-swap"), "shared-key");
@@ -749,6 +805,10 @@ const sceneToken = signSceneChoice({
 assert.equal(readSceneChoice(sceneToken).imageUrl, "https://cdn.example.com/a.jpg");
 assert.throws(() => readSceneChoice(`${sceneToken}x`), /not valid/);
 assert.throws(() => signSceneChoice({ imageUrl: "https://127.0.0.1/a.jpg", thumbUrl: "https://cdn.example.com/t.jpg", source: "local" }), /not allowed/);
+
+const carveMock = await saveMockJob(carve, "pumpkin-carve", { seed: 11 }, { image: sample });
+const carvePng = await renderMockOutput(carveMock.outputId, undefined);
+assert.ok(carvePng[0] === 0x89);
 
 const cutJob = await saveMockJob(cutout, "background-removal", {}, { image: sample });
 const cutPng = await renderMockOutput(cutJob.outputId, undefined);
