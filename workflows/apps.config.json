@@ -199,7 +199,7 @@
         }
       },
       "promptTemplate": null,
-      "notes": "Partner Quiver + Gemini blank/carve stills + ByteDanceFirstLastFrameNode (Seedance 1.5 Pro FLF blank→carved). Serverless COMFY_BASE_URL_PUMPKIN_CARVE + COMFY_API_KEY_TEAM.",
+      "notes": "Partner Quiver + Gemini blank/carve stills (dark voids, no candle or internal glow) + ByteDance2FirstLastFrameNode (Seedance 2.0 first-last-frame hyperlapse, 720p, 8s, audio off). Serverless COMFY_BASE_URL_PUMPKIN_CARVE + COMFY_API_KEY_TEAM.",
       "output": { "node": "50", "media": "video" }
     }
   }
