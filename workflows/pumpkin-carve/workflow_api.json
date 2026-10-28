@@ -50,13 +50,13 @@
         "10",
         0
       ],
-      "prompt": "Photorealistic Halloween pumpkin carving still. Vertical 9:16 portrait on a dark porch at night. A classic orange jack-o'-lantern pumpkin with ONLY the design from the reference image carved into the front face as clean black silhouette cuts (stencil-style carving), glowing warm candlelight from within through the carved openings. Keep the subject's distinctive shapes/logo/features recognizable — do NOT invent glasses, eyes, teeth, or any extra features that are not in the reference. Soft smoke, autumn leaves, shallow depth of field. No text overlays, no watermarks, no extra faces floating off the pumpkin.",
+      "prompt": "Photorealistic Halloween pumpkin carving still. Vertical 9:16 portrait on a dark porch at night. A classic orange pumpkin with ONLY the design from the reference image carved into the front face as clean silhouette cuts through the rind, stencil-style. The carved openings are dark empty voids. Night porch ambient light only, on the outside of the pumpkin. Keep the subject's distinctive shapes, logo, and features recognizable. Do not invent glasses, eyes, teeth, or any extra features that are not in the reference. Autumn leaves, shallow depth of field. No candle, no flame, no fire, no torch, no internal glow, no smoke, no light inside the cuts. No text overlays, no watermarks, no extra faces floating off the pumpkin.",
       "model": "gemini-3-pro-image-preview",
       "seed": 42,
       "aspect_ratio": "9:16",
       "resolution": "1K",
       "response_modalities": "IMAGE",
-      "system_prompt": "You are an expert image-generation engine. Always produce an image. Treat the input image as the carving design reference. Do not add features absent from the reference."
+      "system_prompt": "You are an expert image-generation engine. Always produce an image. Treat the input image as the carving design reference. Carve only that design as dark silhouette openings. Do not add features absent from the reference. Never add a candle, flame, fire, torch, smoke, or any glow inside the pumpkin. Openings stay dark voids under ambient night porch light."
     },
     "_meta": {
       "title": "Carve Still (Nano Banana Pro)"
@@ -82,13 +82,13 @@
         "30",
         0
       ],
-      "prompt": "Same exact pumpkin, camera angle, porch, lighting, and composition as the reference — but completely UNCARVED. Intact smooth orange pumpkin skin with NO carving, NO holes, NO face, NO silhouette cuts, NO candle glow from within, NO knife, NO hands. A blank whole pumpkin waiting to be carved on a dark Halloween porch at night, vertical 9:16. Soft ambient porch light, autumn leaves, shallow depth of field. No text overlays, no watermarks.",
+      "prompt": "Same exact pumpkin, camera angle, porch, and composition as the reference, but completely uncarved. Intact smooth orange pumpkin skin with no carving, no holes, no face, no silhouette cuts, no knife, and no hands. A blank whole pumpkin waiting to be carved on a dark Halloween porch at night, vertical 9:16. Soft ambient porch light only, from outside the pumpkin. Autumn leaves, shallow depth of field. No candle, no flame, no fire, no torch, no internal glow, no smoke, no light inside the pumpkin. No text overlays, no watermarks.",
       "model": "gemini-3-pro-image-preview",
       "seed": 43,
       "aspect_ratio": "9:16",
       "resolution": "1K",
       "response_modalities": "IMAGE",
-      "system_prompt": "You are an expert image-generation engine. Always produce an image. Output an UNCARVED blank pumpkin that matches the reference framing. Remove every carved opening and internal glow."
+      "system_prompt": "You are an expert image-generation engine. Always produce an image. Output an uncarved blank pumpkin that matches the reference framing. Remove every carved opening. Never add a candle, flame, fire, torch, smoke, or any internal glow. Solid orange skin under ambient night porch light only."
     },
     "_meta": {
       "title": "Blank Pumpkin Still (first frame)"
@@ -108,10 +108,16 @@
     }
   },
   "40": {
-    "class_type": "ByteDanceFirstLastFrameNode",
+    "class_type": "ByteDance2FirstLastFrameNode",
     "inputs": {
-      "model": "seedance-1-5-pro-251215",
-      "prompt": "Photorealistic time-lapse of pumpkin carving on a dark Halloween porch. START on the blank uncarved pumpkin (first frame). Hands and a carving knife appear and progressively cut the design into the pumpkin face. END exactly matching the last-frame carved pumpkin: same silhouette openings, same candle glow through those cuts, same porch mood. Camera locked / fixed. Do not invent a generic jack-o'-lantern face; keep the unique silhouette from the last frame. Progressive carving only — blank skin first, finished design last. Subtle smoke, warm candle flicker grows as cuts open. No whip pans, no text, no watermarks.",
+      "model": "Seedance 2.0",
+      "model.prompt": "Hyperlapse of real pumpkin carving, sped up like a documentary time-lapse. Locked camera, no camera move. Start on the blank uncarved pumpkin in the first frame. Real hands and a small carving knife enter and cut fast, sawing and punching clean silhouette openings through the rind until the face matches the last frame exactly. Fast cutting pace, visible knife strokes and pumpkin scraps, natural skin texture, real porch at night. Ambient porch light only. Carved openings stay dark empty voids with nothing lit inside. End on the finished silhouette, matching the last frame design, pumpkin, and porch. Do not invent a generic jack-o'-lantern face. No candle, no flame, no fire, no torch, no internal glow, no smoke, no CGI, no plastic look, no morphing. No whip pans, no text, no watermarks.",
+      "model.resolution": "720p",
+      "model.duration": 8,
+      "model.generate_audio": false,
+      "model.ratio": "9:16",
+      "seed": 42,
+      "watermark": false,
       "first_frame": [
         "32",
         0
@@ -119,17 +125,10 @@
       "last_frame": [
         "30",
         0
-      ],
-      "resolution": "720p",
-      "aspect_ratio": "9:16",
-      "duration": 8,
-      "seed": 42,
-      "camera_fixed": true,
-      "watermark": false,
-      "generate_audio": false
+      ]
     },
     "_meta": {
-      "title": "Timelapse FLF (Seedance 1.5 Pro)"
+      "title": "Timelapse FLF (Seedance 2.0)"
     }
   },
   "50": {
