@@ -185,8 +185,8 @@
       "title": "Pumpkin Carve",
       "enabled": true,
       "workflow": "workflows/pumpkin-carve/workflow_api.json",
-      "cloudWorkflowId": "bd70e361-ded7-4310-8bb1-b7c4c033f16f",
-      "cloudWorkflowName": "comfy-api-apps - Pumpkin Carve",
+      "cloudWorkflowId": "92b15047-27a2-48bd-9f7f-f0d01d512f64",
+      "cloudWorkflowName": "Pumpkin Carve",
       "partnerNodes": true,
       "imageInputs": {
         "image": { "node": "10", "input": "image", "maxSide": 1536 }
@@ -195,11 +195,11 @@
         "seed": {
           "node": "30",
           "input": "seed",
-          "also": [ { "node": "40", "input": "seed" }, { "node": "20", "input": "model.seed" } ]
+          "also": [ { "node": "40", "input": "seed" }, { "node": "32", "input": "seed" }, { "node": "20", "input": "model.seed" } ]
         }
       },
       "promptTemplate": null,
-      "notes": "Quiver Arrow2 vectorize + SaveSVG for live stencil. Nano Banana Pro carve still 9:16. Grok Imagine Video 1.5 Lite I2V timelapse. SVG is not fed into the edit node.",
+      "notes": "Partner Quiver + Gemini blank/carve stills + ByteDanceFirstLastFrameNode (Seedance 1.5 Pro FLF blank→carved). Serverless COMFY_BASE_URL_PUMPKIN_CARVE + COMFY_API_KEY_TEAM.",
       "output": { "node": "50", "media": "video" }
     }
   }
