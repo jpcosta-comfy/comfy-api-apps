@@ -180,6 +180,27 @@
       },
       "notes": "One graph: BiRefNet cutout, composite into the preset insert, FLUX 3 nested keyframe, LTX 2.5 first-last frame from the sealed lid, RIFE x2, SaveVideo. Extra product photos are FLUX reference images. Preset stills are uploaded on the server. releaseId in deployments.json is a placeholder.",
       "output": { "node": "18", "media": "video" }
+    },
+    "pumpkin-carve": {
+      "title": "Pumpkin Carve",
+      "enabled": true,
+      "workflow": "workflows/pumpkin-carve/workflow_api.json",
+      "cloudWorkflowId": "bd70e361-ded7-4310-8bb1-b7c4c033f16f",
+      "cloudWorkflowName": "comfy-api-apps - Pumpkin Carve",
+      "partnerNodes": true,
+      "imageInputs": {
+        "image": { "node": "10", "input": "image", "maxSide": 1536 }
+      },
+      "params": {
+        "seed": {
+          "node": "30",
+          "input": "seed",
+          "also": [ { "node": "40", "input": "seed" }, { "node": "20", "input": "model.seed" } ]
+        }
+      },
+      "promptTemplate": null,
+      "notes": "Quiver Arrow2 vectorize + SaveSVG for live stencil. Nano Banana Pro carve still 9:16. Grok Imagine Video 1.5 Lite I2V timelapse. SVG is not fed into the edit node.",
+      "output": { "node": "50", "media": "video" }
     }
   }
 }

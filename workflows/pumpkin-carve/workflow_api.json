@@ -1,0 +1,111 @@
+{
+  "10": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    },
+    "_meta": {
+      "title": "Input Image"
+    }
+  },
+  "20": {
+    "class_type": "QuiverImageToSVGNodeV2",
+    "inputs": {
+      "model": "arrow-2",
+      "model.image": [
+        "10",
+        0
+      ],
+      "model.auto_crop": false,
+      "model.target_size": 0,
+      "model.reasoning_effort": "high",
+      "model.temperature": 1.0,
+      "model.top_p": 1.0,
+      "model.presence_penalty": 0.0,
+      "model.width": 0,
+      "model.height": 0,
+      "model.seed": 42
+    },
+    "_meta": {
+      "title": "Vectorize (Quiver Arrow2)"
+    }
+  },
+  "21": {
+    "class_type": "SaveSVGNode",
+    "inputs": {
+      "svg": [
+        "20",
+        0
+      ],
+      "filename_prefix": "pumpkin-carve/stencil"
+    },
+    "_meta": {
+      "title": "Save Stencil SVG"
+    }
+  },
+  "30": {
+    "class_type": "GeminiImage2Node",
+    "inputs": {
+      "images": [
+        "10",
+        0
+      ],
+      "prompt": "Photorealistic Halloween pumpkin carving still. Vertical 9:16 portrait on a dark porch at night. A classic orange jack-o'-lantern pumpkin with THIS design from the reference image carved into the front face as clean black silhouette cuts (stencil-style carving), glowing warm candlelight from within through the carved openings. Keep the subject's distinctive shapes/logo/features recognizable in the carving. Soft smoke, autumn leaves, shallow depth of field. No text overlays, no watermarks, no extra faces floating off the pumpkin.",
+      "model": "gemini-3-pro-image-preview",
+      "seed": 42,
+      "aspect_ratio": "9:16",
+      "resolution": "1K",
+      "response_modalities": "IMAGE",
+      "system_prompt": "You are an expert image-generation engine. Always produce an image. Treat the input image as the carving design reference."
+    },
+    "_meta": {
+      "title": "Carve Still (Nano Banana Pro)"
+    }
+  },
+  "31": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "30",
+        0
+      ],
+      "filename_prefix": "pumpkin-carve/still"
+    },
+    "_meta": {
+      "title": "Save Carve Still"
+    }
+  },
+  "40": {
+    "class_type": "GrokVideoNode",
+    "inputs": {
+      "model": "grok-imagine-video-1.5-lite",
+      "prompt": "Time-lapse of pumpkin carving: the carved design appears gradually on the pumpkin surface as if being cut, candle light flicker inside, subtle smoke, static camera, no whip pans, photorealistic Halloween porch night mood.",
+      "resolution": "720p",
+      "aspect_ratio": "9:16",
+      "duration": 6,
+      "seed": 42,
+      "image": [
+        "30",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Timelapse I2V (Grok 1.5 Lite)"
+    }
+  },
+  "50": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "40",
+        0
+      ],
+      "filename_prefix": "pumpkin-carve/timelapse",
+      "format": "auto",
+      "format.codec": "auto"
+    },
+    "_meta": {
+      "title": "Output Video"
+    }
+  }
+}

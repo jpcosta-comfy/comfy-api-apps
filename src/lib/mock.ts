@@ -262,6 +262,8 @@ export async function renderMockOutput(outputId: string, grids: Record<string, s
   } else if (meta.app === "open-unboxing") {
     const plate = meta.roles.includes("empty") ? await readRole(meta.id, "empty") : await readRole(meta.id, "product");
     png = await renderTryOn(plate, await readRole(meta.id, "product"));
+  } else if (meta.app === "pumpkin-carve") {
+    png = await renderTryOn(await readRole(meta.id, "image"), await readRole(meta.id, "image"));
   } else {
     throw new AppError(404, "not_found", "That output was not found.");
   }

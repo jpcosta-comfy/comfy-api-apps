@@ -137,6 +137,16 @@ const CHROME: Record<
       },
     ],
   },
+  "pumpkin-carve": {
+    icon: "pumpkin",
+    name: "Pumpkin Carve",
+    tagline: "Carve a photo into a Halloween timelapse",
+    runLabel: "Carve",
+    views: ["Result"],
+    kind: "carve",
+    empty: "Upload an image to get started",
+    images: [{ key: "image", label: "Input" }],
+  },
 };
 
 function labelOf(value: string): string {

@@ -46,7 +46,7 @@ export type AppConfig = {
   params: Record<string, ParamSpec>;
   presets?: Record<string, string>;
   intensityWords?: Record<string, string>;
-  promptTemplate?: string;
+  promptTemplate?: string | null;
   grids?: Record<string, string>;
   styles?: Record<string, string>;
   motions?: Record<string, string>;
