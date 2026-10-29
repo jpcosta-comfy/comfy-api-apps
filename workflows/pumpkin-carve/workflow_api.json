@@ -9,25 +9,15 @@
     }
   },
   "20": {
-    "class_type": "QuiverImageToSVGNodeV2",
+    "class_type": "RecraftVectorizeImageNode",
     "inputs": {
-      "model": "arrow-2",
-      "model.image": [
+      "image": [
         "10",
         0
-      ],
-      "model.auto_crop": false,
-      "model.target_size": 0,
-      "model.reasoning_effort": "high",
-      "model.temperature": 1.0,
-      "model.top_p": 1.0,
-      "model.presence_penalty": 0.0,
-      "model.width": 0,
-      "model.height": 0,
-      "model.seed": 42
+      ]
     },
     "_meta": {
-      "title": "Vectorize (Quiver Arrow2)"
+      "title": "Vectorize (Recraft)"
     }
   },
   "21": {
