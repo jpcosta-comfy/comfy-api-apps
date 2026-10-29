@@ -5,15 +5,15 @@ Halloween Comfy API App for Spooky Season Model Jam.
 ## Pipeline
 1. **Input** — user image
 2. **Vectorize** — `RecraftVectorizeImageNode` (Quiver rejected celebrity photos via content moderation) + `SaveSVGNode` (stencil for live demo)
-3. **Carve Still** — `GeminiImage2Node` (Nano Banana Pro) 9:16 pumpkin. The reference design is carved as clean silhouette cuts. Openings are dark voids. Night porch ambient light only. No candle, flame, fire, smoke, or internal glow.
-4. **Blank Still** — `GeminiImage2Node` uncarves the same framing (first frame for FLF). No fire or glow.
-5. **Timelapse** — `ByteDance2FirstLastFrameNode`, model `Seedance 2.0`. First frame is the blank still (node 32), last frame is the carve still (node 30). 720p, 9:16, 8 seconds, audio off. Hyperlapse of real hands and a knife cutting the silhouette. Locked camera. No candle, flame, fire, torch, internal glow, or CGI look.
+3. **Blank Still** — `ByteDanceSeedreamNode` (Seedream 4.5) text-to-image, 1440x2560 (9:16): a big uncarved pumpkin on a night porch (first frame for FLF). Generated without the user photo, so it is always blank.
+4. **Carve Still** — `ResizeAndPadImage` pads the user photo to 9:16, `ImageBatch` pairs it with the blank still, and Seedream 4.5 carves the person into that same pumpkin as stencil cuts (last frame for FLF). No candle or glow.
+5. **Timelapse** — `KlingFirstLastFrameNode` (Kling 3.0). First frame is the blank still (node 32), last frame is the carve still (node 30). 720p, 9:16, 8 seconds, audio off. Hyperlapse of real hands and a knife.
 6. **Output** — `SaveVideo` (node 50) from node 40 video output index 0
 
 ## Note
 No reliable SVG→IMAGE node in catalog. Recraft+SaveSVG stay in the graph for the live stencil stage; the image edit uses the **original** input image as reference.
 
-1080p on Seedance 2.0 costs about 2.5× the 720p clip for the same 8 seconds, so the live graph stays at 720p.
+Gemini (IMAGE_PROHIBITED_CONTENT), Quiver, and Seedance 2.0 (OutputVideoSensitiveContentDetected) blocked celebrity photos. Recraft, Seedream 4.5, and Kling 3.0 pass them.
 
 ## Partner nodes
-`partnerNodes: true` (Recraft, Gemini, ByteDance Seedance 2.0 FLF).
+`partnerNodes: true` (Recraft, ByteDance Seedream 4.5, Kling 3.0 FLF).
